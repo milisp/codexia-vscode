@@ -541,7 +541,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 						<div class="input-wrapper">
 							<textarea 
 								id="messageInput" 
-								placeholder="Ask Codexia to do anything"
+								placeholder="Ask Codex to do anything"
 								rows="1"
 							></textarea>
 							<button id="sendButton" class="send-button">

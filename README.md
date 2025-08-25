@@ -30,7 +30,7 @@ A VSCode extension that provides a chat interface for the OpenAI Codex CLI, simi
 
 1. Clone this repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/milisp/codexia-vscode
 cd codexia-vscode
 ```
 

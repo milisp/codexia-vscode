@@ -18,6 +18,10 @@ A VSCode extension that provides a chat interface for the OpenAI Codex CLI, simi
 - 📁 **Workspace Aware**: Automatically uses current workspace context
 - 🛠️ **Protocol-based**: Uses Codex CLI's native protocol for reliable communication
 
+## Related project
+
+- [Codexia](https://github.com/milisp/codexia) Tauri v2 GUI for the OpenAI Codex CLI
+
 ## Prerequisites
 
 - [Codex CLI](https://github.com/openai/codex) installed and available in PATH

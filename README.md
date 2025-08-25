@@ -1,6 +1,7 @@
 # Codexia VSCode Extension
 
 [![Stars](https://img.shields.io/github/stars/milisp/codexia-vscode?style=social)](https://github.com/milisp/codexia-vscode/stargazers)
+[![Feature Requests](https://img.shields.io/github/issues/milisp/codexia-vscode/feature-request?label=feature%20requests)](https://github.com/milisp/codexia-vscode/labels/feature-request)
 
 A VSCode extension that provides a chat interface for the OpenAI Codex CLI, similar to Claude Code, allowing you to interact with AI coding assistants directly from your editor.
 

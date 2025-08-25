@@ -1,23 +1,89 @@
 {
   "name": "codexia-vscode",
-  "displayName": "codexia-vscode",
-  "description": "codexia for OpenAI Codex Cli",
+  "displayName": "Codexia",
+  "description": "AI coding assistant powered by Codex CLI with chat interface similar to Claude Dev",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.103.0"
   },
   "categories": [
-    "Other"
+    "AI",
+    "Chat",
+    "Programming Languages",
+    "Education"
   ],
-  "activationEvents": [],
+  "keywords": [
+    "codex",
+    "ai",
+    "coding",
+    "assistant",
+    "chat",
+    "openai"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codexia-activitybar",
+          "title": "Codexia",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "codexia-activitybar": [
+        {
+          "type": "webview",
+          "id": "codexia.chatView",
+          "name": "Chat"
+        },
+        {
+          "type": "webview",
+          "id": "codexia.settingsView",
+          "name": "Settings"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "codexia-vscode.helloWorld",
-        "title": "Hello World"
+        "command": "codexia.newTask",
+        "title": "New Task",
+        "icon": "$(add)"
+      },
+      {
+        "command": "codexia.openSettings",
+        "title": "Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "codexia.clearHistory",
+        "title": "Clear Chat",
+        "icon": "$(clear-all)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codexia.newTask",
+          "group": "navigation@1",
+          "when": "view == codexia.chatView"
+        },
+        {
+          "command": "codexia.openSettings",
+          "group": "navigation@2",
+          "when": "view == codexia.chatView"
+        },
+        {
+          "command": "codexia.clearHistory",
+          "group": "navigation@3",
+          "when": "view == codexia.chatView"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",

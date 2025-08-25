@@ -1,26 +1,69 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { ChatProvider } from "./chatProvider";
+import { CodexService } from "./codexService";
+import { SettingsProvider } from "./settingsProvider";
+import { ConfigManager } from "./config";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  console.log("Codexia extension is now active!");
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "codexia-vscode" is now active!');
+  // Initialize services
+  const configManager = new ConfigManager(context);
+  const codexService = new CodexService(configManager);
+  const chatProvider = new ChatProvider(context, codexService);
+  const settingsProvider = new SettingsProvider(context, configManager);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('codexia-vscode.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from codexia-vscode!');
-	});
+  // Register webview providers
+  const chatViewProvider = vscode.window.registerWebviewViewProvider(
+    "codexia.chatView",
+    chatProvider,
+    { webviewOptions: { retainContextWhenHidden: true } },
+  );
 
-	context.subscriptions.push(disposable);
+  const settingsViewProvider = vscode.window.registerWebviewViewProvider(
+    "codexia.settingsView",
+    settingsProvider,
+    { webviewOptions: { retainContextWhenHidden: true } },
+  );
+
+  // Register commands
+  const newTaskCommand = vscode.commands.registerCommand(
+    "codexia.newTask",
+    () => {
+      chatProvider.newTask();
+    },
+  );
+
+  const settingsCommand = vscode.commands.registerCommand(
+    "codexia.openSettings",
+    () => {
+      settingsProvider.show();
+    },
+  );
+
+  const configChangedCommand = vscode.commands.registerCommand(
+    "codexia.configChanged",
+    () => {
+      // Notify chat provider that config changed
+      chatProvider.onConfigChanged();
+    },
+  );
+
+  const clearHistoryCommand = vscode.commands.registerCommand(
+    "codexia.clearHistory",
+    () => {
+      chatProvider.clearHistory();
+    },
+  );
+
+  context.subscriptions.push(
+    chatViewProvider,
+    settingsViewProvider,
+    newTaskCommand,
+    settingsCommand,
+    configChangedCommand,
+    clearHistoryCommand,
+  );
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

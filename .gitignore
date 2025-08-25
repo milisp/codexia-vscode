@@ -3,3 +3,11 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+
+.claude/
+Claude.md
+CLAUDE.md
+
+Agents.md
+
+.env

@@ -63,7 +63,8 @@ export class ConfigManager {
 
     // Approval policy
     if (this._config.approvalPolicy) {
-      args.push("-c", `approval_policy=${this._config.approvalPolicy}`);
+      console.log("approvalPolicy", this._config.approvalPolicy)
+      args.push("-a", this._config.approvalPolicy);
     }
 
     // Sandbox mode
@@ -71,8 +72,11 @@ export class ConfigManager {
       args.push("-c", `sandbox_mode=${this._config.sandboxMode}`);
     }
 
+    args.push("-c", "show_raw_agent_reasoning=true");
+
     // Working directory
     if (workspacePath) {
+      console.log("workspacePath", workspacePath)
       args.push("-c", `cwd=${workspacePath}`);
     }
 

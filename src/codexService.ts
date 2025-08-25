@@ -146,7 +146,7 @@ export class CodexService extends EventEmitter {
   private _handleCodexEvent(line: string): void {
     try {
       const event: Event = JSON.parse(line);
-      console.log("Received event:", event);
+      // console.log("Received event:", event);
 
       if (event.msg.type === "session_configured") {
         this._sessionId = event.msg.session_id;
@@ -157,7 +157,7 @@ export class CodexService extends EventEmitter {
       }
 
       if (event.msg.type === "agent_message") {
-        console.log("Agent message:", event.msg.message);
+        // console.log("Agent message:", event.msg.message);
         this.emit(
           "agent-message",
           event.msg.message || event.msg.last_agent_message || "",
@@ -166,7 +166,6 @@ export class CodexService extends EventEmitter {
       }
 
       if (event.msg.type === "agent_message_delta") {
-        console.log("Agent message delta:", event.msg.delta);
         this.emit("agent-message-delta", event.msg.delta || "");
         return;
       }
@@ -207,7 +206,7 @@ export class CodexService extends EventEmitter {
       }
 
       if (event.msg.type === "task_complete") {
-        console.log("Task completed:", event.msg.last_agent_message);
+        console.log("Task completed:", event.msg.last_agent_message?.substring(1, 20));
         this.emit("task-complete", {
           last_message: event.msg.last_agent_message,
         });
@@ -230,7 +229,7 @@ export class CodexService extends EventEmitter {
     }
 
     const json = JSON.stringify(submission);
-    console.log("Sending to codex:", json);
+    // console.log("Sending to codex:", json);
 
     this._currentProcess.stdin?.write(json + "\n");
   }

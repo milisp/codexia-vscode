@@ -3,7 +3,7 @@
 [![Stars](https://img.shields.io/github/stars/milisp/codexia-vscode?style=social)](https://github.com/milisp/codexia-vscode/stargazers)
 [![Feature Requests](https://img.shields.io/github/issues/milisp/codexia-vscode/feature-request?label=feature%20requests)](https://github.com/milisp/codexia-vscode/labels/feature-request)
 
-A VSCode extension that provides a chat interface for the OpenAI Codex CLI, similar to Claude Code, allowing you to interact with AI coding assistants directly from your editor.
+A VSCode extension that provides a chat interface for the OpenAI Codex CLI, allowing you to interact with AI coding assistants directly from your editor.
 
 <p align="center">
     <img src="./assets/codexia-vscode.png" alt="Codexia Chat Interface" width="25%" />
@@ -13,7 +13,7 @@ A VSCode extension that provides a chat interface for the OpenAI Codex CLI, simi
 
 - 🤖 **AI Chat Interface**: Chat with Codex AI directly in VSCode sidebar
 - ⚙️ **Easy Configuration**: UI-based setup for OSS mode, models, and providers
-- 🔄 **Real-time Streaming**: See responses as they're generated
+- 🔄 **Real-time Streaming**: See responses as they're generated - show_raw_agent_reasoning=true
 - ⚡ **Command Execution**: Approve/deny AI-suggested command executions
 - 🎨 **VS Code Theme Integration**: Matches your VS Code theme
 - 📁 **Workspace Aware**: Automatically uses current workspace context

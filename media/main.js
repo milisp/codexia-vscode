@@ -73,17 +73,9 @@
   }
 
   function renderMessages() {
-    console.log(
-      "Frontend: renderMessages called with",
-      messages.length,
-      "messages",
-    );
-    console.log("Frontend: Messages:", messages);
-
     messagesContainer.innerHTML = "";
 
     messages.forEach((message, index) => {
-      console.log("Frontend: Rendering message", index, ":", message);
       const messageElement = createMessageElement(message, index);
       messagesContainer.appendChild(messageElement);
     });
@@ -115,9 +107,8 @@
 
     // Special handling for exec-request and system messages - make them collapsible
     if (message.type === "exec-request" || message.type === "system") {
-      console.log("Creating collapsible message:", message);
+      // console.log("Creating collapsible message:", message);
       const collapseId = `collapse-${message.id}`;
-      console.log("Using collapse ID:", collapseId);
 
       const collapsibleHeader = document.createElement("div");
       collapsibleHeader.className = "collapsible-header";
@@ -134,7 +125,6 @@
       collapsibleHeader.appendChild(typeSpan);
 
       collapsibleHeader.addEventListener("click", () => {
-        console.log("Header clicked for:", collapseId);
         toggleCollapse(collapseId);
         return false;
       });
@@ -145,12 +135,6 @@
       contentDiv.className = "message-content collapsible-content collapsed";
       contentDiv.id = collapseId;
       contentDiv.innerHTML = formatMessageContent(message.content);
-      console.log(
-        "Created content div with classes:",
-        contentDiv.className,
-        "and ID:",
-        contentDiv.id,
-      );
 
       // Add approval buttons for execution requests
       if (message.execRequestId) {

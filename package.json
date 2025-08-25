@@ -3,6 +3,10 @@
   "displayName": "Codexia",
   "description": "AI coding assistant powered by Codex CLI with chat interface similar to Claude Dev",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/milisp/codexia-vscode"
+  },
   "engines": {
     "vscode": "^1.103.0"
   },

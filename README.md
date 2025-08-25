@@ -4,7 +4,9 @@
 
 A VSCode extension that provides a chat interface for the OpenAI Codex CLI, similar to Claude Code, allowing you to interact with AI coding assistants directly from your editor.
 
-![Codexia Chat Interface](https://via.placeholder.com/600x400/2d2d30/ffffff?text=Codexia+Chat+Interface)
+<p align="center">
+    <img src="./assets/codexia-vscode.png" alt="Codexia Chat Interface" width="25%" />
+</p>
 
 ## Features
 
@@ -247,6 +249,7 @@ node test-protocol.js
 
 ## Acknowledgments
 
+- [Codexia](https://github.com/milisp/codexia) Tauri v2 GUI for the OpenAI Codex CLI
 - Inspired by [Cline](https://github.com/cline/cline) for the UI design patterns
-- Built on top of [Codex CLI](https://github.com/anthropics/codex) for AI integration
+- Built on top of [Codex CLI](https://github.com/openai/codex) for AI integration
 - Uses VS Code's extension API and webview system

@@ -257,3 +257,10 @@ node test-protocol.js
 - Inspired by [Cline](https://github.com/cline/cline) for the UI design patterns
 - Built on top of [Codex CLI](https://github.com/openai/codex) for AI integration
 - Uses VS Code's extension API and webview system
+
+## Roadmap
+
+- ✅ Basic chat integration
+- 🚧 @Files from FileTree support
+- 🚧 Note system
+- 🚧 Advanced configuration options

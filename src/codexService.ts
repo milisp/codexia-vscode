@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import { ConfigManager } from "./config";
-import type {Submission, Event} from "./types/protocol"
+import type {Submission, Event} from "./types/protocol";
 import { handleCodexEvent } from "./eventHandler";
 import { generateId } from "./utils";
 
@@ -39,11 +39,12 @@ export class CodexService extends EventEmitter {
         );
         console.log("Working directory:", workingDirectory);
 
-        // Start codex in protocol mode
+        // Start codex in protocol mode with configured environment variables
+        const env = this._configManager.getEnvironmentVariables();
         const childProcess = spawn("codex", args, {
           cwd: workingDirectory,
           stdio: ["pipe", "pipe", "pipe"],
-          env: { ...process.env }, // Inherit environment variables
+          env: env,
         });
 
         this._currentProcess = childProcess;

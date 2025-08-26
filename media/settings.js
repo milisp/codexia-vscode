@@ -6,6 +6,7 @@
   let providers = [];
   let approvalPolicies = [];
   let sandboxModes = [];
+  let providerEnvVars = {};
 
   // DOM elements
   const useOssCheckbox = document.getElementById("useOss");
@@ -13,6 +14,8 @@
   const customModelInput = document.getElementById("customModel");
   const providerSelect = document.getElementById("providerSelect");
   const providerGroup = document.getElementById("providerGroup");
+  const envVarsGroup = document.getElementById("envVarsGroup");
+  const envVarInputs = document.getElementById("envVarInputs");
   const approvalSelect = document.getElementById("approvalSelect");
   const sandboxSelect = document.getElementById("sandboxSelect");
   const customArgsTextarea = document.getElementById("customArgs");
@@ -53,6 +56,7 @@
     // Provider selection
     providerSelect.addEventListener("change", () => {
       updateModelOptions();
+      updateEnvVarInputs();
       updateCommandPreview();
     });
 
@@ -86,6 +90,7 @@
     providers = message.providers;
     approvalPolicies = message.approvalPolicies;
     sandboxModes = message.sandboxModes;
+    providerEnvVars = message.providerEnvVars;
 
     populateUI();
   }
@@ -122,6 +127,7 @@
 
     // Update UI state
     updateProviderVisibility();
+    updateEnvVarInputs();
     updateCommandPreview();
   }
 
@@ -145,8 +151,11 @@
   function updateProviderVisibility() {
     if (useOssCheckbox.checked) {
       providerGroup.style.display = "none";
+      envVarsGroup.style.display = "none";
     } else {
       providerGroup.style.display = "flex";
+      // Show env vars group only if provider is selected
+      updateEnvVarInputs();
     }
   }
 
@@ -182,6 +191,51 @@
     customOption.value = "custom";
     customOption.textContent = "Custom model...";
     modelSelect.appendChild(customOption);
+  }
+
+  function updateEnvVarInputs() {
+    // Clear existing inputs
+    envVarInputs.innerHTML = "";
+    
+    const selectedProvider = providerSelect.value;
+    
+    // Hide env vars group if no provider selected or in OSS mode
+    if (useOssCheckbox.checked || !selectedProvider || !providerEnvVars[selectedProvider]) {
+      envVarsGroup.style.display = "none";
+      return;
+    }
+    
+    const envVars = providerEnvVars[selectedProvider];
+    
+    if (envVars.length === 0) {
+      envVarsGroup.style.display = "none";
+      return;
+    }
+    
+    // Show env vars group and create inputs
+    envVarsGroup.style.display = "flex";
+    
+    envVars.forEach(envVar => {
+      const inputGroup = document.createElement("div");
+      inputGroup.className = "env-var-input-group";
+      inputGroup.style.cssText = "margin-bottom: 8px;";
+      
+      const label = document.createElement("label");
+      label.className = "form-label";
+      label.textContent = envVar;
+      label.style.cssText = "display: block; margin-bottom: 4px; font-size: 12px;";
+      
+      const input = document.createElement("input");
+      input.type = "password";
+      input.className = "form-input";
+      input.id = `envVar_${envVar}`;
+      input.placeholder = `Enter ${envVar}`;
+      input.value = (currentConfig.envVars && currentConfig.envVars[envVar]) || "";
+      
+      inputGroup.appendChild(label);
+      inputGroup.appendChild(input);
+      envVarInputs.appendChild(inputGroup);
+    });
   }
 
   function updateCommandPreview() {
@@ -230,6 +284,17 @@
   }
 
   function saveConfiguration() {
+    // Collect environment variables
+    const envVars = {};
+    const envVarInputElements = document.querySelectorAll('[id^="envVar_"]');
+    envVarInputElements.forEach(input => {
+      const envVarName = input.id.replace('envVar_', '');
+      const value = input.value.trim();
+      if (value) {
+        envVars[envVarName] = value;
+      }
+    });
+
     const config = {
       useOss: useOssCheckbox.checked,
       model:
@@ -242,6 +307,7 @@
       customArgs: customArgsTextarea.value.trim()
         ? customArgsTextarea.value.split("\\n").filter((arg) => arg.trim())
         : [],
+      envVars: envVars,
     };
 
     vscode.postMessage({

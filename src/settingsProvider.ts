@@ -72,6 +72,7 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
     const providers = ConfigManager.getProviderOptions();
     const approvalPolicies = ConfigManager.getApprovalPolicyOptions();
     const sandboxModes = ConfigManager.getSandboxModeOptions();
+    const providerEnvVars = ConfigManager.getProviderEnvVars();
 
     this._view?.webview.postMessage({
       type: "configData",
@@ -80,6 +81,7 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
       providers,
       approvalPolicies,
       sandboxModes,
+      providerEnvVars,
     });
   }
 
@@ -160,6 +162,13 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 							<select id="providerSelect" class="form-select">
 								<option value="">Select a provider...</option>
 							</select>
+						</div>
+
+						<!-- Environment Variables -->
+						<div class="form-group" id="envVarsGroup" style="display: none;">
+							<label class="form-label">API Keys</label>
+							<div id="envVarInputs"></div>
+							<p class="form-help">Set environment variables for API authentication</p>
 						</div>
 
 						<!-- Model Selection -->

@@ -8,6 +8,7 @@ export interface CodexConfig {
   approvalPolicy: string;
   sandboxMode: string;
   customArgs: string[];
+  envVars: { [key: string]: string };
 }
 
 export const DEFAULT_CONFIG: CodexConfig = {
@@ -18,6 +19,7 @@ export const DEFAULT_CONFIG: CodexConfig = {
   approvalPolicy: "on-request",
   sandboxMode: "workspace-write",
   customArgs: [],
+  envVars: {},
 };
 
 export class ConfigManager {
@@ -69,7 +71,7 @@ export class ConfigManager {
 
     // Approval policy
     if (this._config.approvalPolicy) {
-      console.log("approvalPolicy", this._config.approvalPolicy)
+      console.log("approvalPolicy", this._config.approvalPolicy);
       args.push("-c", `approval_policy=${this._config.approvalPolicy}`);
 
     }
@@ -83,7 +85,7 @@ export class ConfigManager {
 
     // Working directory
     if (workspacePath) {
-      console.log("workspacePath", workspacePath)
+      console.log("workspacePath", workspacePath);
       args.push("-c", `cwd=${workspacePath}`);
     }
 
@@ -116,5 +118,30 @@ export class ConfigManager {
 
   public static getSandboxModeOptions(): string[] {
     return ["read-only", "workspace-write", "danger-full-access"];
+  }
+
+  public static getProviderEnvVars(): { [provider: string]: string[] } {
+    return {
+      openai: ["OPENAI_API_KEY"],
+      anthropic: ["ANTHROPIC_API_KEY"],
+      google: ["GEMINI_API_KEY"],
+      custom: [],
+    };
+  }
+
+  public getEnvironmentVariables(): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    
+    // Add configured environment variables
+    if (this._config.envVars) {
+      Object.keys(this._config.envVars).forEach(key => {
+        const value = this._config.envVars[key];
+        if (value && value.trim()) {
+          env[key] = value;
+        }
+      });
+    }
+    
+    return env;
   }
 }

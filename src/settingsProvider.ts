@@ -166,7 +166,7 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 
 						<!-- Environment Variables -->
 						<div class="form-group" id="envVarsGroup" style="display: none;">
-							<label class="form-label">API Keys</label>
+							<label class="form-label">API Key</label>
 							<div id="envVarInputs"></div>
 							<p class="form-help">Set environment variables for API authentication</p>
 						</div>

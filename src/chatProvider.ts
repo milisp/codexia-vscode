@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import { CodexService } from "./codexService";
-import { ChatMessage } from "./chatTypes";
-import { getHtmlForWebview, getNonce } from "./chatHtml";
+
+interface ChatMessage {
+  id: string;
+  type: "user" | "assistant" | "system" | "exec-request";
+  content: string;
+  timestamp: Date;
+  execRequestId?: string;
+}
 
 export class ChatProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "codexia.chatView";
@@ -15,6 +21,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   private _activeExecCell?: { id: string; commands: string[] };
   private _runningCommands: Map<string, { id: string; command: string }> =
     new Map();
+  
 
   constructor(
     private readonly _extensionContext: vscode.ExtensionContext,
@@ -33,11 +40,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionContext.extensionUri],
     };
 
-    webviewView.webview.html = getHtmlForWebview(
-      webviewView.webview,
-      this._extensionContext.extensionUri,
-      getNonce(),
-    );
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
     webviewView.webview.onDidReceiveMessage(
       (message) => {
@@ -49,7 +52,25 @@ export class ChatProvider implements vscode.WebviewViewProvider {
             this._clearMessages();
             break;
           case "approveExecution":
-            this._handleExecutionApproval(message.requestId, message.approved);
+            this._handleExecutionApproval(message.execRequestId, message.approved);
+            break;
+          case "getChatHistory":
+            this._handleGetChatHistory();
+            break;
+          case "loadChatSession":
+            this._handleLoadChatSession(message.sessionId);
+            break;
+          case "deleteChatSession":
+            this._handleDeleteChatSession(message.sessionId);
+            break;
+          case "getSettings":
+            this._handleGetSettings();
+            break;
+          case "saveSettings":
+            this._handleSaveSettings(message.settings);
+            break;
+          case "resetSettings":
+            this._handleResetSettings();
             break;
         }
       },
@@ -91,12 +112,8 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   }
 
   private _setupCodexEventListeners(): void {
-    // Prioritize delta streaming for all messages
+    // Use only agent-message-delta for streaming
     this._codexService.on("agent-message-delta", (delta: string) => {
-      this._onAgentMessageDelta(delta);
-    });
-
-    this._codexService.on("message-delta", (delta: string) => {
       this._onAgentMessageDelta(delta);
     });
 
@@ -175,15 +192,11 @@ export class ChatProvider implements vscode.WebviewViewProvider {
         timestamp: new Date(),
       };
       this._messages.push(this._currentStreamingMessage);
-      console.log(
-        "ChatProvider: Started new streaming message with delta:",
-        delta,
-      );
     } else {
       // Update existing streaming message
       this._currentStreamingMessage.content += delta;
     }
-    // Immediately update UI
+    // Update UI
     this._updateWebview();
   }
 
@@ -196,7 +209,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       execRequestId: request.id,
     };
     this._messages.push(execMessage);
-    // Immediately update UI
+    // Update UI
     this._updateWebview();
   }
 
@@ -274,7 +287,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     // Don't add a separate completion message if we already have the response
     if (!completion.last_message || !this._currentStreamingMessage) {}
 
-    // Immediately update UI
+    // Update UI
     this._updateWebview();
 
     this._view?.webview.postMessage({
@@ -385,12 +398,94 @@ export class ChatProvider implements vscode.WebviewViewProvider {
         type: "updateMessages",
         messages: this._messages,
       });
-    } else {
-      console.log("ChatProvider: No webview available to update");
     }
+  }
+
+  private _handleGetChatHistory(): void {
+    // For now, send back empty history
+    // TODO: Implement actual chat history persistence
+    this._view?.webview.postMessage({
+      type: "chatHistory",
+      sessions: []
+    });
+  }
+
+  private _handleLoadChatSession(sessionId: string): void {
+    // TODO: Implement loading chat session
+    console.log("Load chat session:", sessionId);
+  }
+
+  private _handleDeleteChatSession(sessionId: string): void {
+    // TODO: Implement deleting chat session
+    console.log("Delete chat session:", sessionId);
+  }
+
+  private _handleGetSettings(): void {
+    // TODO: Implement getting settings from workspace configuration
+    const defaultSettings = {
+      apiKey: "",
+      model: "gpt-4",
+      temperature: 0.7,
+      maxTokens: 4000,
+      autoSave: true,
+      theme: "auto"
+    };
+    
+    this._view?.webview.postMessage({
+      type: "settings",
+      settings: defaultSettings
+    });
+  }
+
+  private _handleSaveSettings(settings: any): void {
+    // TODO: Implement saving settings to workspace configuration
+    console.log("Save settings:", settings);
+    this._view?.webview.postMessage({
+      type: "settingsSaved"
+    });
+  }
+
+  private _handleResetSettings(): void {
+    // TODO: Implement resetting settings
+    console.log("Reset settings");
+    this._handleGetSettings(); // Send back default settings
   }
 
   private _generateId(): string {
     return Math.random().toString(36).substr(2, 9);
+  }
+
+  private _getHtmlForWebview(webview: vscode.Webview): string {
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionContext.extensionUri, "out", "webview-ui", "index.js"),
+    );
+    const styleUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionContext.extensionUri, "out", "webview-ui", "index.css"),
+    );
+    const nonce = this._getNonce();
+
+    return `<!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-eval';">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="${styleUri}" rel="stylesheet">
+        <title>Codexia Chat</title>
+      </head>
+      <body>
+        <div id="root"></div>
+        <script nonce="${nonce}" src="${scriptUri}"></script>
+      </body>
+      </html>`;
+  }
+
+  private _getNonce(): string {
+    let text = "";
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   }
 }

@@ -11,3 +11,5 @@ CLAUDE.md
 Agents.md
 
 .env
+
+webview-ui/**/*.js.map

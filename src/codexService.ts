@@ -17,8 +17,14 @@ export class CodexService extends EventEmitter {
     this._configManager = configManager;
   }
 
-  public async startSession(): Promise<void> {
+  public async startSession(minimal = false): Promise<void> {
+    console.log(`=== StartSession Called (minimal: ${minimal}) ===`);
+    console.log(`Current process exists: ${!!this._currentProcess}`);
+    console.log(`Current process killed: ${this._currentProcess?.killed}`);
+    console.log(`Session ready: ${this._isReady}`);
+    
     if (this._currentProcess && !this._currentProcess.killed) {
+      console.log("Session already running, skipping start");
       return; // Already running
     }
 
@@ -30,17 +36,26 @@ export class CodexService extends EventEmitter {
           workspaceFolder?.uri.fsPath || process.cwd();
 
         // Build codex command with configuration
-        const args = this._configManager.getCodexArgs(workingDirectory);
-        args.push("proto"); // Add proto at the end
-
-        console.log(
-          "Starting codex with command:",
-          ["codex", ...args].join(" "),
-        );
+        let args: string[];
+        let env: NodeJS.ProcessEnv;
+        
+        if (minimal) {
+          // Minimal mode - just basic proto mode
+          args = ["proto"];
+          env = { ...process.env };
+          console.log("=== Using Minimal Mode ===");
+        } else {
+          // Full configuration mode
+          args = this._configManager.getCodexArgs(workingDirectory);
+          args.push("proto");
+          env = this._configManager.getEnvironmentVariables();
+        }
+        
+        console.log("=== Codex Startup Debug ===");
+        console.log("Starting codex with command:", ["codex", ...args].join(" "));
         console.log("Working directory:", workingDirectory);
-
-        // Start codex in protocol mode with configured environment variables
-        const env = this._configManager.getEnvironmentVariables();
+        console.log("Environment variables:", Object.keys(env).filter(k => k.includes('API') || k.includes('KEY')).map(k => `${k}=${env[k] ? '[SET]' : '[UNSET]'}`));
+        console.log("Full args array:", args);
         const childProcess = spawn("codex", args, {
           cwd: workingDirectory,
           stdio: ["pipe", "pipe", "pipe"],
@@ -74,6 +89,19 @@ export class CodexService extends EventEmitter {
           console.log(`Codex process closed with code: ${code}`);
           this._isReady = false;
           this.emit("session-closed", code);
+          
+          // If process died unexpectedly (not code 0), attempt restart
+          if (code !== 0 && code !== null) {
+            console.log("Codex process died unexpectedly, attempting restart in 3 seconds...");
+            setTimeout(() => {
+              if (!this._isReady) {
+                console.log("Attempting to restart Codex session...");
+                this.startSession().catch(error => {
+                  console.error("Failed to restart Codex session:", error);
+                });
+              }
+            }, 3000);
+          }
         });
 
         childProcess.on("error", (error: Error) => {
@@ -122,6 +150,7 @@ export class CodexService extends EventEmitter {
     return new Promise((resolve, reject) => {
       let responseContent = "";
       let isComplete = false;
+      let hasApprovalRequest = false;
 
       const submission: Submission = {
         id: generateId(),
@@ -155,6 +184,11 @@ export class CodexService extends EventEmitter {
         }
       };
 
+      // Listen for approval requests to extend timeout
+      const onApprovalRequest = () => {
+        hasApprovalRequest = true;
+      };
+
       // Listen for task completion (end of streaming)
       const onTaskComplete = (data: any) => {
         if (!isComplete) {
@@ -174,10 +208,15 @@ export class CodexService extends EventEmitter {
       };
 
       const cleanup = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         this.removeListener("agent-message", onAgentMessage);
         this.removeListener("agent-message-delta", onAgentMessageDelta);
         this.removeListener("task-complete", onTaskComplete);
         this.removeListener("session-closed", onSessionClosed);
+        this.removeListener("exec-approval-request", onApprovalRequestWithTimeout);
+        this.removeListener("patch-approval-request", onApprovalRequestWithTimeout);
       };
 
       this.on("agent-message", onAgentMessage);
@@ -185,13 +224,35 @@ export class CodexService extends EventEmitter {
       this.on("task-complete", onTaskComplete);
       this.on("session-closed", onSessionClosed);
 
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (!isComplete) {
+      // Initial timeout of 2 minutes, but extend if approval request comes in
+      let timeoutId = setTimeout(() => {
+        if (!isComplete && !hasApprovalRequest) {
           cleanup();
           reject(new Error("Request timeout"));
         }
-      }, 30000);
+      }, 120000); // 2 minutes initial timeout
+
+      // Extend timeout when approval request is received
+      const extendTimeout = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            if (!isComplete) {
+              cleanup();
+              reject(new Error("Approval timeout - no user response"));
+            }
+          }, 600000); // 10 minutes for user approval
+        }
+      };
+
+      // Update approval request handler to extend timeout
+      const onApprovalRequestWithTimeout = () => {
+        hasApprovalRequest = true;
+        extendTimeout();
+      };
+
+      this.on("exec-approval-request", onApprovalRequestWithTimeout);
+      this.on("patch-approval-request", onApprovalRequestWithTimeout);
 
       try {
         this._sendSubmission(submission);
@@ -211,10 +272,28 @@ export class CodexService extends EventEmitter {
       op: {
         type: "exec_approval",
         id: requestId,
-        decision: approved ? "allow" : "deny",
+        decision: approved ? "approved" : "denied",
       },
     };
 
+    console.log("Sending exec approval:", JSON.stringify(submission, null, 2));
+    this._sendSubmission(submission);
+  }
+
+  public async approvePatch(
+    requestId: string,
+    approved: boolean,
+  ): Promise<void> {
+    const submission: Submission = {
+      id: generateId(),
+      op: {
+        type: "patch_approval",
+        id: requestId,
+        decision: approved ? "approved" : "denied",
+      },
+    };
+
+    console.log("Sending patch approval:", JSON.stringify(submission, null, 2));
     this._sendSubmission(submission);
   }
 
@@ -259,5 +338,13 @@ export class CodexService extends EventEmitter {
 
   public getSessionId(): string | undefined {
     return this._sessionId;
+  }
+
+  public async restartSession(minimal = false): Promise<void> {
+    console.log(`Manual session restart requested (minimal: ${minimal})`);
+    await this.stopSession();
+    // Wait a moment for cleanup
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await this.startSession(minimal);
   }
 }

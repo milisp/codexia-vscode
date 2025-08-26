@@ -56,6 +56,9 @@ export class ChatProvider implements vscode.WebviewViewProvider {
           case "approveExecution":
             this._handleExecutionApproval(message.execRequestId, message.approved);
             break;
+          case "restartSession":
+            this._handleRestartSession();
+            break;
           case "getConfig":
             this._handleGetConfig();
             break;
@@ -132,6 +135,60 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     });
 
     this._codexService.on(
+      "exec-approval-request",
+      (request: { call_id: string; command: string | string[]; cwd: string; reason?: string }) => {
+        console.log("ChatProvider: exec-approval-request received:", request);
+        this._onExecApprovalRequest(request);
+      },
+    );
+
+    this._codexService.on(
+      "patch-approval-request",
+      (request: { event_id: string; call_id: string; changes: any; reason?: string; grant_root?: string }) => {
+        console.log("ChatProvider: patch-approval-request received:", request);
+        this._onPatchApprovalRequest(request);
+      },
+    );
+
+    this._codexService.on(
+      "patch-apply-begin",
+      (event: { call_id: string; auto_approved: boolean; changes: any }) => {
+        console.log("ChatProvider: patch-apply-begin received:", event);
+        this._onPatchApplyBegin(event);
+      },
+    );
+
+    this._codexService.on(
+      "patch-apply-end",
+      (event: { call_id: string; stdout: string; stderr: string; success: boolean }) => {
+        console.log("ChatProvider: patch-apply-end received:", event);
+        this._onPatchApplyEnd(event);
+      },
+    );
+
+    this._codexService.on(
+      "background-event",
+      (event: { message: string }) => {
+        console.log("ChatProvider: background-event received:", event);
+        this._onBackgroundEvent(event);
+      },
+    );
+
+    // Temporary: Listen for any codex events we might have missed
+    this._codexService.on(
+      "codex-event",
+      (event: any) => {
+        console.log("ChatProvider: unhandled codex event:", event);
+        // Show unhandled events as system messages for debugging
+        if (event.msg && event.msg.type) {
+          this._onBackgroundEvent({ 
+            message: `Unhandled event: ${event.msg.type}` 
+          });
+        }
+      },
+    );
+
+    this._codexService.on(
       "exec-request",
       (request: { id: string; command: string }) => {
         console.log("ChatProvider: exec-request received:", request);
@@ -172,6 +229,11 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       console.log("ChatProvider: session-closed received");
       this._onSessionClosed();
     });
+
+    this._codexService.on("shutdown-complete", () => {
+      console.log("ChatProvider: shutdown-complete received");
+      this._onShutdownComplete();
+    });
   }
 
 
@@ -201,6 +263,127 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       // Update existing streaming message
       this._currentStreamingMessage.content += delta;
     }
+    // Update UI
+    this._updateWebview();
+  }
+
+  private _onExecApprovalRequest(request: { call_id: string; command: string | string[]; cwd: string; reason?: string }): void {
+    const command = Array.isArray(request.command) ? request.command.join(' ') : request.command;
+    const content = `Execute command: ${command}${request.reason ? `\n\nReason: ${request.reason}` : ''}`;
+    
+    const approvalMessage: ChatMessage = {
+      id: this._generateId(),
+      type: "exec-request",
+      content,
+      timestamp: new Date(),
+      execRequestId: request.call_id,
+    };
+    this._messages.push(approvalMessage);
+    // Update UI
+    this._updateWebview();
+  }
+
+  private _onPatchApprovalRequest(request: { event_id: string; call_id: string; changes: any; reason?: string; grant_root?: string }): void {
+    let content = "Apply code changes";
+    
+    if (request.changes && typeof request.changes === 'object') {
+      const fileCount = Object.keys(request.changes).length;
+      const fileNames = Object.keys(request.changes).join(', ');
+      content = `Apply changes to ${fileCount} file(s): ${fileNames}`;
+    }
+    
+    if (request.reason) {
+      content += `\n\nReason: ${request.reason}`;
+    }
+    
+    if (request.grant_root) {
+      content += `\n\nThis will grant write access to: ${request.grant_root}`;
+    }
+    
+    // Store the original event_id and call_id for approval
+    const messageId = this._generateId();
+    
+    const approvalMessage: ChatMessage = {
+      id: messageId,
+      type: "exec-request",
+      content,
+      timestamp: new Date(),
+      execRequestId: messageId, // Use message ID for UI tracking
+    };
+    
+    // Store mapping between message ID and original event_id (this is what Codex expects!)
+    (approvalMessage as any).originalEventId = request.event_id;
+    (approvalMessage as any).originalCallId = request.call_id;
+    
+    this._messages.push(approvalMessage);
+    // Update UI
+    this._updateWebview();
+  }
+
+  private _onPatchApplyBegin(event: { call_id: string; auto_approved: boolean; changes: any }): void {
+    let content = "Applying code changes...";
+    
+    if (event.changes && typeof event.changes === 'object') {
+      const fileCount = Object.keys(event.changes).length;
+      const fileNames = Object.keys(event.changes).join(', ');
+      content = `Applying changes to ${fileCount} file(s): ${fileNames}...`;
+    }
+    
+    if (event.auto_approved) {
+      content += " (auto-approved)";
+    }
+    
+    const applyMessage: ChatMessage = {
+      id: this._generateId(),
+      type: "system",
+      content,
+      timestamp: new Date(),
+    };
+    this._messages.push(applyMessage);
+    // Update UI
+    this._updateWebview();
+  }
+
+  private _onPatchApplyEnd(event: { call_id: string; stdout: string; stderr: string; success: boolean }): void {
+    let content = event.success ? "✅ Code changes applied successfully" : "❌ Failed to apply code changes";
+    
+    if (event.stdout) {
+      content += `\n\nOutput:\n${event.stdout}`;
+    }
+    
+    if (event.stderr) {
+      content += `\n\nError:\n${event.stderr}`;
+    }
+    
+    const resultMessage: ChatMessage = {
+      id: this._generateId(),
+      type: "system",
+      content,
+      timestamp: new Date(),
+    };
+    this._messages.push(resultMessage);
+    // Update UI
+    this._updateWebview();
+  }
+
+  private _onBackgroundEvent(event: { message: string }): void {
+    // Show background events as system messages
+    let content = `ℹ️ ${event.message}`;
+    
+    // Detect common error patterns
+    if (event.message.includes("429") || event.message.includes("Too Many Requests")) {
+      content = `⚠️ Rate limit exceeded. Please wait before trying again.\n\nDetails: ${event.message}`;
+    } else if (event.message.includes("stream error")) {
+      content = `⚠️ Connection issue: ${event.message}`;
+    }
+    
+    const backgroundMessage: ChatMessage = {
+      id: this._generateId(),
+      type: "system",
+      content,
+      timestamp: new Date(),
+    };
+    this._messages.push(backgroundMessage);
     // Update UI
     this._updateWebview();
   }
@@ -283,14 +466,20 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   }
 
   private _onTaskComplete(completion: { last_message: string }): void {
-    // console.log("ChatProvider: _onTaskComplete called with:", completion);
+    console.log("ChatProvider: _onTaskComplete called with:", completion);
     this._isProcessing = false;
-    this._currentStreamingMessage = undefined;
+    
+    // Clear state after task completion
     this._runningCommands.clear();
     this._activeExecCell = undefined;
 
-    // Don't add a separate completion message if we already have the response
-    if (!completion.last_message || !this._currentStreamingMessage) {}
+    // If we have a streaming message, finalize it
+    if (this._currentStreamingMessage && completion.last_message) {
+      this._currentStreamingMessage.content = completion.last_message;
+    }
+    
+    // Clear streaming state
+    this._currentStreamingMessage = undefined;
 
     // Update UI
     this._updateWebview();
@@ -306,6 +495,29 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     this._currentStreamingMessage = undefined;
     this._runningCommands.clear();
     this._activeExecCell = undefined;
+    this._view?.webview.postMessage({
+      type: "setTyping",
+      isTyping: false,
+    });
+  }
+
+  private _onShutdownComplete(): void {
+    console.log("Codex session shut down");
+    this._isProcessing = false;
+    this._currentStreamingMessage = undefined;
+    this._runningCommands.clear();
+    this._activeExecCell = undefined;
+    
+    // Add a system message to indicate session restart
+    const shutdownMessage: ChatMessage = {
+      id: this._generateId(),
+      type: "system",
+      content: "🔄 Codex session restarted due to configuration change",
+      timestamp: new Date(),
+    };
+    this._messages.push(shutdownMessage);
+    this._updateWebview();
+    
     this._view?.webview.postMessage({
       type: "setTyping",
       isTyping: false,
@@ -365,19 +577,35 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     approved: boolean,
   ): Promise<void> {
     try {
-      await this._codexService.approveExecution(requestId, approved);
+      // Find the original request to determine if it's exec or patch approval
+      const originalMessage = this._messages.find(msg => 
+        msg.execRequestId === requestId && msg.type === "exec-request"
+      );
+      
+      if (originalMessage && originalMessage.content.includes("Apply changes")) {
+        // This is a patch approval request - use the original event_id (NOT call_id!)
+        const originalEventId = (originalMessage as any).originalEventId || requestId;
+        const originalCallId = (originalMessage as any).originalCallId;
+        console.log("Using original event_id for patch approval:", originalEventId);
+        console.log("Original call_id was:", originalCallId);
+        console.log("Message ID for UI tracking:", requestId);
+        await this._codexService.approvePatch(originalEventId, approved);
+      } else {
+        // This is an exec approval request
+        await this._codexService.approveExecution(requestId, approved);
+      }
 
       const approvalMessage: ChatMessage = {
         id: this._generateId(),
         type: "system",
-        content: `Execution ${approved ? "approved" : "denied"}`,
+        content: `${originalMessage?.content.includes("Apply changes") ? "Patch" : "Execution"} ${approved ? "approved" : "denied"}`,
         timestamp: new Date(),
       };
 
       this._messages.push(approvalMessage);
       this._updateWebview();
     } catch (error) {
-      console.error("Failed to send execution approval:", error);
+      console.error("Failed to send approval:", error);
     }
   }
 
@@ -408,12 +636,17 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 
 
   private _handleGetConfig(): void {
+    console.log("=== GetConfig Called ===");
+    console.log("Stack trace:", new Error().stack);
+    
     const config = this._configManager.getConfig();
     const modelOptions = ConfigManager.getModelOptions();
     const providers = ConfigManager.getProviderOptions();
     const approvalPolicies = ConfigManager.getApprovalPolicyOptions();
     const sandboxModes = ConfigManager.getSandboxModeOptions();
     const providerEnvVars = ConfigManager.getProviderEnvVars();
+
+    console.log("Sending config data:", config);
 
     this._view?.webview.postMessage({
       type: "configData",
@@ -428,18 +661,28 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 
   private async _handleUpdateConfig(config: any): Promise<void> {
     try {
+      console.log("=== Config Update Started ===");
+      console.log("New config:", config);
+      
       await this._configManager.saveConfig(config);
       
       // Add system message about restart
       this._addMessage('system', 'Configuration updated. Session will restart with new settings.');
 
-      // Restart session to apply new config
+      console.log("Stopping current session...");
       await this._codexService.stopSession();
+      
+      console.log("Waiting 2 seconds before restart...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log("Starting new session...");
       await this._codexService.startSession();
       
+      console.log("Session restart complete");
       // Notify about config change
       vscode.commands.executeCommand("codexia.configChanged");
     } catch (error) {
+      console.error("Config update failed:", error);
       vscode.window.showErrorMessage(
         `Failed to save configuration: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -455,6 +698,39 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       vscode.window.showErrorMessage(
         `Failed to reset configuration: ${error instanceof Error ? error.message : String(error)}`,
       );
+    }
+  }
+
+  private async _handleRestartSession(): Promise<void> {
+    try {
+      const restartMessage: ChatMessage = {
+        id: this._generateId(),
+        type: "system",
+        content: "🔄 Restarting Codex session...",
+        timestamp: new Date(),
+      };
+      this._messages.push(restartMessage);
+      this._updateWebview();
+
+      await this._codexService.restartSession();
+
+      const successMessage: ChatMessage = {
+        id: this._generateId(),
+        type: "system",
+        content: "✅ Codex session restarted successfully",
+        timestamp: new Date(),
+      };
+      this._messages.push(successMessage);
+      this._updateWebview();
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        id: this._generateId(),
+        type: "system",
+        content: `❌ Failed to restart session: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date(),
+      };
+      this._messages.push(errorMessage);
+      this._updateWebview();
     }
   }
 

@@ -10,6 +10,16 @@ interface MessageProps {
 
 const Message: React.FC<MessageProps> = ({ message, index, onApproveExecution }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  
+  // Debug: log execRequestId for exec-request messages
+  if (message.type === "exec-request") {
+    console.log("Message component - exec-request message:", { 
+      id: message.id, 
+      execRequestId: message.execRequestId,
+      hasExecRequestId: !!message.execRequestId,
+      content: message.content 
+    });
+  }
 
   const getTypeLabel = () => {
     switch (message.type) {
@@ -94,7 +104,7 @@ const Message: React.FC<MessageProps> = ({ message, index, onApproveExecution })
         dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
       />
 
-      {message.execRequestId && (
+      {(message.execRequestId || message.type === "exec-request") && (
         <div className="flex gap-2 mt-3">
           <button 
             className="px-3 py-1 rounded text-xs hover:opacity-80"
@@ -102,7 +112,7 @@ const Message: React.FC<MessageProps> = ({ message, index, onApproveExecution })
               backgroundColor: 'var(--vscode-button-background)',
               color: 'var(--vscode-button-foreground)'
             }}
-            onClick={() => onApproveExecution(message.execRequestId!, true)}
+            onClick={() => onApproveExecution(message.execRequestId || message.id, true)}
           >
             ✓ Approve
           </button>

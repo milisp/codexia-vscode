@@ -20,12 +20,13 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
   const [configLoaded, setConfigLoaded] = useState(false);
   
   // Mock data for demo - in real app this would come from props or context
-  const providers = ['openai', 'anthropic', 'google', 'ollama'];
+  const providers = ['openai', 'anthropic', 'google', 'ollama', 'openrouter'];
   const modelOptions: { [key: string]: string[] } = {
-    openai: ['gpt-5', 'gpt-4o', 'gpt-4o-mini'],
+    openai: ['gpt-5', 'gpt-5-mini', 'gpt-4o', 'gpt-4o-mini'],
+    openrouter: ['openai/gpt-oss-20b:free', 'qwen/qwen3-coder:free', 'moonshotai/kimi-k2:free'],
+    ollama: ['llama3.2', 'gpt-oss:20b', 'mistral'],
     anthropic: ['claude-4-sonnet'],
     google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
-    ollama: ['llama3.2', 'gpt-oss:20b', 'mistral']
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

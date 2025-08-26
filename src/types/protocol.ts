@@ -32,7 +32,7 @@ export interface EventMsg {
   last_agent_message?: string;
   delta?: string;
   id?: string;
-  command?: string;
+  command?: string | string[];
   call_id?: string;
   stream?: string;
   chunk?: number[];
@@ -40,5 +40,7 @@ export interface EventMsg {
   stderr?: string;
   exit_code?: number;
   unified_diff?: string;
+  cwd?: string;
+  reason?: string;
   [key: string]: any;
 }

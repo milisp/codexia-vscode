@@ -16,7 +16,7 @@ export const DEFAULT_CONFIG: CodexConfig = {
   model: "gpt-5",
   reasoning: "high",
   provider: "openai",
-  approvalPolicy: "on-request",
+  approvalPolicy: "untrusted",
   sandboxMode: "workspace-write",
   customArgs: [],
   envVars: {},
@@ -71,9 +71,8 @@ export class ConfigManager {
 
     // Approval policy
     if (this._config.approvalPolicy) {
-      console.log("approvalPolicy", this._config.approvalPolicy);
+      console.log("Setting approvalPolicy to:", this._config.approvalPolicy);
       args.push("-c", `approval_policy=${this._config.approvalPolicy}`);
-
     }
 
     // Sandbox mode
@@ -100,8 +99,9 @@ export class ConfigManager {
   // Predefined model options
   public static getModelOptions(): { [provider: string]: string[] } {
     return {
-      ollama: ["llama3.2", "gpt-oss:20b", "mistral", "gemma3", "qwen3"],
       openai: ["gpt-5", "gpt-4o"],
+      openrouter: ['openai/gpt-oss-20b:free', 'qwen/qwen3-coder:free', 'moonshotai/kimi-k2:free'],
+      ollama: ["llama3.2", "gpt-oss:20b", "mistral", "gemma3", "qwen3"],
       anthropic: ["claude-4-sonnet", "claude-4-1-opus", "claude-4-opus"],
       google: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
       custom: [],
@@ -109,7 +109,7 @@ export class ConfigManager {
   }
 
   public static getProviderOptions(): string[] {
-    return ["ollama", "openai", "anthropic", "google", "custom"];
+    return ["ollama", "openai", "anthropic", "google", "openrouter", "custom"];
   }
 
   public static getApprovalPolicyOptions(): string[] {
@@ -124,6 +124,7 @@ export class ConfigManager {
     return {
       openai: ["OPENAI_API_KEY"],
       anthropic: ["ANTHROPIC_API_KEY"],
+      openrouter: ["OPENROUTER_API_KEY"],
       google: ["GEMINI_API_KEY"],
       custom: [],
     };

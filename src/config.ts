@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 export interface CodexConfig {
   useOss: boolean;
   model: string;
+  reasoning:string,
   provider: string;
   approvalPolicy: string;
   sandboxMode: string;
@@ -12,6 +13,7 @@ export interface CodexConfig {
 export const DEFAULT_CONFIG: CodexConfig = {
   useOss: true,
   model: "llama3.2",
+  reasoning: "high",
   provider: "ollama",
   approvalPolicy: "on-request",
   sandboxMode: "workspace-write",
@@ -51,20 +53,25 @@ export class ConfigManager {
       args.push("-c", "model_provider=oss");
     }
 
-    // Model specification
-    if (this._config.model) {
-      args.push("-c", `model=${this._config.model}`);
-    }
-
     // Provider (only for non-OSS mode)
     if (this._config.provider && !this._config.useOss) {
       args.push("-c", `model_provider=${this._config.provider}`);
     }
 
+    // Model specification
+    if (this._config.model) {
+      args.push("-c", `model="${this._config.model}"`);
+    }
+
+    if (this._config.reasoning) {
+      args.push("-c", `model_reasoning_effort=${this._config.reasoning}`);
+    }
+
     // Approval policy
     if (this._config.approvalPolicy) {
       console.log("approvalPolicy", this._config.approvalPolicy)
-      args.push("-a", this._config.approvalPolicy);
+      args.push("-c", `approval_policy=${this._config.approvalPolicy}`);
+
     }
 
     // Sandbox mode
@@ -91,16 +98,16 @@ export class ConfigManager {
   // Predefined model options
   public static getModelOptions(): { [provider: string]: string[] } {
     return {
-      ollama: ["llama3.2", "gpt-oss:20b", "mistral", "gemma3"],
+      ollama: ["llama3.2", "gpt-oss:20b", "mistral", "gemma3", "qwen3"],
       openai: ["gpt-5", "gpt-4o"],
       anthropic: ["claude-4-sonnet", "claude-4-1-opus", "claude-4-opus"],
-      gemini: ["gemini-2.5-pro", "gemini-2.5-flash"],
+      google: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
       custom: [],
     };
   }
 
   public static getProviderOptions(): string[] {
-    return ["ollama", "openai", "anthropic", "gemini", "custom"];
+    return ["ollama", "openai", "anthropic", "google", "custom"];
   }
 
   public static getApprovalPolicyOptions(): string[] {

@@ -3,6 +3,8 @@ import { ChatProvider } from "./chatProvider";
 import { CodexService } from "./codexService";
 import { SettingsProvider } from "./settingsProvider";
 import { ConfigManager } from "./config";
+import { DiffViewerManager } from "./diffViewer";
+import { registerDevCommands } from "./devCommands";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("Codexia extension is now active!");
@@ -12,6 +14,14 @@ export function activate(context: vscode.ExtensionContext) {
   const codexService = new CodexService(configManager);
   const chatProvider = new ChatProvider(context, codexService);
   const settingsProvider = new SettingsProvider(context, configManager);
+  const diffViewer = DiffViewerManager.getInstance();
+
+  // Set up global diff event handling
+  codexService.on("turn-diff", (unifiedDiff: string) => {
+    console.log("Extension: Received turn-diff event, showing diff");
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    diffViewer.showDiff(unifiedDiff, workspaceRoot);
+  });
 
   // Register webview providers
   const chatViewProvider = vscode.window.registerWebviewViewProvider(
@@ -64,6 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
     configChangedCommand,
     clearHistoryCommand,
   );
+
+  registerDevCommands(context);
 }
 
 export function deactivate() {}

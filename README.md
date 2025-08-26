@@ -5,6 +5,9 @@
 
 A VSCode extension that provides a chat interface for the OpenAI Codex CLI, allowing you to interact with AI coding assistants directly from your editor.
 
+> [!TIP]
+> **⭐ Star the repo and follow [milisp](https://x.com/lisp_mi/status/1960125815469076891) on X and I will follow back all devs**.
+
 <p align="center">
     <img src="./assets/codexia-vscode.png" alt="Codexia Chat Interface" width="25%" />
 </p>
@@ -19,9 +22,10 @@ A VSCode extension that provides a chat interface for the OpenAI Codex CLI, allo
 - 📁 **Workspace Aware**: Automatically uses current workspace context
 - 🛠️ **Protocol-based**: Uses Codex CLI's native protocol for reliable communication
 
-## Related project
+## How this works
 
-- [Codexia](https://github.com/milisp/codexia) Tauri v2 GUI for the OpenAI Codex CLI
+- **codex proto**: `codex -c model_provider=oss -m gpt-oss:20b proto`
+- **Process Communication**: JSON-RPC, stdin/stdout streams
 
 ## Prerequisites
 

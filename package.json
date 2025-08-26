@@ -69,6 +69,11 @@
         "command": "codexia.clearHistory",
         "title": "Clear Chat",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "codexia.testDiff",
+        "title": "Test Diff Viewer",
+        "icon": "$(diff)"
       }
     ],
     "menus": {

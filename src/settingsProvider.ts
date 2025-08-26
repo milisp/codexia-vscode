@@ -154,6 +154,14 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 							<p class="form-help">Enable to use local open source models via Ollama</p>
 						</div>
 
+						<!-- Provider Selection -->
+						<div class="form-group" id="providerGroup">
+							<label class="form-label" for="providerSelect">Provider</label>
+							<select id="providerSelect" class="form-select">
+								<option value="">Select a provider...</option>
+							</select>
+						</div>
+
 						<!-- Model Selection -->
 						<div class="form-group">
 							<label class="form-label" for="modelSelect">Model (-m)</label>
@@ -161,14 +169,6 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 								<option value="">Select a model...</option>
 							</select>
 							<input type="text" id="customModel" class="form-input" placeholder="Or enter custom model name" style="display: none;">
-						</div>
-
-						<!-- Provider Selection -->
-						<div class="form-group" id="providerGroup">
-							<label class="form-label" for="providerSelect">Provider</label>
-							<select id="providerSelect" class="form-select">
-								<option value="">Select a provider...</option>
-							</select>
 						</div>
 
 						<!-- Approval Policy -->

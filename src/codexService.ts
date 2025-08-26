@@ -2,50 +2,9 @@ import * as vscode from "vscode";
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import { ConfigManager } from "./config";
-
-// Protocol types based on the Rust implementation
-interface Submission {
-  id: string;
-  op: Operation;
-}
-
-interface Operation {
-  type: string;
-  items?: InputItem[];
-  id?: string;
-  decision?: string;
-}
-
-interface InputItem {
-  type: string;
-  text?: string;
-  image_url?: string;
-  path?: string;
-}
-
-interface Event {
-  id: string;
-  timestamp: string;
-  msg: EventMsg;
-}
-
-interface EventMsg {
-  type: string;
-  session_id?: string;
-  model?: string;
-  message?: string;
-  last_agent_message?: string;
-  delta?: string;
-  id?: string;
-  command?: string;
-  call_id?: string;
-  stream?: string;
-  chunk?: number[];
-  stdout?: string;
-  stderr?: string;
-  exit_code?: number;
-  [key: string]: any;
-}
+import type {Submission, Event} from "./types/protocol"
+import { handleCodexEvent } from "./eventHandler";
+import { generateId } from "./utils";
 
 export class CodexService extends EventEmitter {
   private _currentProcess?: ChildProcess;
@@ -101,7 +60,7 @@ export class CodexService extends EventEmitter {
 
           for (const line of lines) {
             if (line.trim()) {
-              this._handleCodexEvent(line.trim());
+              handleCodexEvent(this, line.trim());
             }
           }
         });
@@ -143,86 +102,6 @@ export class CodexService extends EventEmitter {
     });
   }
 
-  private _handleCodexEvent(line: string): void {
-    try {
-      const event: Event = JSON.parse(line);
-      // console.log("Received event:", event);
-
-      if (event.msg.type === "session_configured") {
-        this._sessionId = event.msg.session_id;
-        this._isReady = true;
-        console.log(`Session configured with ID: ${this._sessionId}`);
-        this.emit("session-ready", this._sessionId);
-        return;
-      }
-
-      if (event.msg.type === "agent_message") {
-        // console.log("Agent message:", event.msg.message);
-        this.emit(
-          "agent-message",
-          event.msg.message || event.msg.last_agent_message || "",
-        );
-        return;
-      }
-
-      if (event.msg.type === "agent_message_delta") {
-        this.emit("agent-message-delta", event.msg.delta || "");
-        return;
-      }
-
-      if (event.msg.type === "exec_request") {
-        console.log("Execution request:", {
-          id: event.msg.id,
-          command: event.msg.command,
-        });
-        this.emit("exec-request", {
-          id: event.msg.id,
-          command: event.msg.command,
-        });
-        return;
-      }
-
-      if (event.msg.type === "exec_command_output_delta") {
-        // Convert byte array to string
-        const chunk = event.msg.chunk
-          ? String.fromCharCode(...event.msg.chunk)
-          : "";
-        this.emit("exec-output", {
-          call_id: event.msg.call_id,
-          stream: event.msg.stream,
-          chunk: chunk,
-        });
-        return;
-      }
-
-      if (event.msg.type === "exec_command_end") {
-        this.emit("exec-complete", {
-          call_id: event.msg.call_id,
-          stdout: event.msg.stdout,
-          stderr: event.msg.stderr,
-          exit_code: event.msg.exit_code,
-        });
-        return;
-      }
-
-      if (event.msg.type === "task_complete") {
-        console.log("Task completed:", event.msg.last_agent_message?.substring(1, 20));
-        this.emit("task-complete", {
-          last_message: event.msg.last_agent_message,
-        });
-        return;
-      }
-
-      // Log other event types for debugging
-      console.log("Unhandled event type:", event.msg.type, event);
-
-      // Emit generic event for other message types
-      this.emit("codex-event", event);
-    } catch (error) {
-      console.error("Failed to parse codex event:", line, error);
-    }
-  }
-
   private _sendSubmission(submission: Submission): void {
     if (!this._currentProcess || !this._isReady) {
       throw new Error("Codex session not ready");
@@ -244,7 +123,7 @@ export class CodexService extends EventEmitter {
       let isComplete = false;
 
       const submission: Submission = {
-        id: this._generateId(),
+        id: generateId(),
         op: {
           type: "user_input",
           items: [{ type: "text", text: message }],
@@ -327,7 +206,7 @@ export class CodexService extends EventEmitter {
     approved: boolean,
   ): Promise<void> {
     const submission: Submission = {
-      id: this._generateId(),
+      id: generateId(),
       op: {
         type: "exec_approval",
         id: requestId,
@@ -340,7 +219,7 @@ export class CodexService extends EventEmitter {
 
   public async interrupt(): Promise<void> {
     const submission: Submission = {
-      id: this._generateId(),
+      id: generateId(),
       op: { type: "interrupt" },
     };
 
@@ -352,7 +231,7 @@ export class CodexService extends EventEmitter {
       // Send graceful shutdown
       try {
         const submission: Submission = {
-          id: this._generateId(),
+          id: generateId(),
           op: { type: "shutdown" },
         };
         this._sendSubmission(submission);
@@ -373,65 +252,11 @@ export class CodexService extends EventEmitter {
     this._currentProcess = undefined;
   }
 
-  public async isCodexAvailable(): Promise<boolean> {
-    return new Promise((resolve) => {
-      try {
-        const childProcess = spawn("codex", ["-h"], { shell: true });
-
-        childProcess.on("close", (code: number | null) => {
-          resolve(code === 0);
-        });
-
-        childProcess.on("error", () => {
-          resolve(false);
-        });
-      } catch {
-        resolve(false);
-      }
-    });
-  }
-
   public isSessionReady(): boolean {
     return this._isReady;
   }
 
   public getSessionId(): string | undefined {
     return this._sessionId;
-  }
-
-  private _generateId(): string {
-    return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-  }
-
-  public async getCodexVersion(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      try {
-        const childProcess = spawn("codex", ["-V"], { shell: true });
-
-        let stdout = "";
-
-        childProcess.stdout?.on("data", (data: Buffer) => {
-          stdout += data.toString();
-        });
-
-        childProcess.on("close", (code: number | null) => {
-          if (code === 0) {
-            resolve(stdout.trim());
-          } else {
-            reject(new Error("Failed to get codex version"));
-          }
-        });
-
-        childProcess.on("error", (error: Error) => {
-          reject(new Error(`Failed to get codex version: ${error.message}`));
-        });
-      } catch (error) {
-        reject(
-          new Error(
-            `Failed to execute codex version command: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        );
-      }
-    });
   }
 }

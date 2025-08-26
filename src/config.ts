@@ -12,10 +12,10 @@ export interface CodexConfig {
 }
 
 export const DEFAULT_CONFIG: CodexConfig = {
-  useOss: true,
-  model: "llama3.2",
+  useOss: false,
+  model: "gpt-5",
   reasoning: "high",
-  provider: "ollama",
+  provider: "openai",
   approvalPolicy: "on-request",
   sandboxMode: "workspace-write",
   customArgs: [],

@@ -28,10 +28,10 @@ interface SettingsData {
 const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
   const [settingsData, setSettingsData] = useState<SettingsData | null>(null);
   const [config, setConfig] = useState<CodexConfig>({
-    useOss: true,
-    model: 'llama3.2',
+    useOss: false,
+    model: 'gpt-5',
     reasoning: 'high',
-    provider: 'ollama',
+    provider: 'openai',
     approvalPolicy: 'on-request',
     sandboxMode: 'workspace-write',
     customArgs: [],

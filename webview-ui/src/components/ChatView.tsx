@@ -77,6 +77,7 @@ const ChatView: React.FC<ChatViewProps> = ({
     });
   };
 
+
   if (isHidden) {
     return null;
   }

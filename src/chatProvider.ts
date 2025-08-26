@@ -56,24 +56,6 @@ export class ChatProvider implements vscode.WebviewViewProvider {
           case "approveExecution":
             this._handleExecutionApproval(message.execRequestId, message.approved);
             break;
-          case "getChatHistory":
-            this._handleGetChatHistory();
-            break;
-          case "loadChatSession":
-            this._handleLoadChatSession(message.sessionId);
-            break;
-          case "deleteChatSession":
-            this._handleDeleteChatSession(message.sessionId);
-            break;
-          case "getSettings":
-            this._handleGetSettings();
-            break;
-          case "saveSettings":
-            this._handleSaveSettings(message.settings);
-            break;
-          case "resetSettings":
-            this._handleResetSettings();
-            break;
           case "getConfig":
             this._handleGetConfig();
             break;
@@ -424,55 +406,6 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private _handleGetChatHistory(): void {
-    // For now, send back empty history
-    // TODO: Implement actual chat history persistence
-    this._view?.webview.postMessage({
-      type: "chatHistory",
-      sessions: []
-    });
-  }
-
-  private _handleLoadChatSession(sessionId: string): void {
-    // TODO: Implement loading chat session
-    console.log("Load chat session:", sessionId);
-  }
-
-  private _handleDeleteChatSession(sessionId: string): void {
-    // TODO: Implement deleting chat session
-    console.log("Delete chat session:", sessionId);
-  }
-
-  private _handleGetSettings(): void {
-    // TODO: Implement getting settings from workspace configuration
-    const defaultSettings = {
-      apiKey: "",
-      model: "gpt-4",
-      temperature: 0.7,
-      maxTokens: 4000,
-      autoSave: true,
-      theme: "auto"
-    };
-    
-    this._view?.webview.postMessage({
-      type: "settings",
-      settings: defaultSettings
-    });
-  }
-
-  private _handleSaveSettings(settings: any): void {
-    // TODO: Implement saving settings to workspace configuration
-    console.log("Save settings:", settings);
-    this._view?.webview.postMessage({
-      type: "settingsSaved"
-    });
-  }
-
-  private _handleResetSettings(): void {
-    // TODO: Implement resetting settings
-    console.log("Reset settings");
-    this._handleGetSettings(); // Send back default settings
-  }
 
   private _handleGetConfig(): void {
     const config = this._configManager.getConfig();
@@ -496,10 +429,14 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   private async _handleUpdateConfig(config: any): Promise<void> {
     try {
       await this._configManager.saveConfig(config);
-      vscode.window.showInformationMessage(
-        "Codexia configuration updated successfully!",
-      );
+      
+      // Add system message about restart
+      this._addMessage('system', 'Configuration updated. Session will restart with new settings.');
 
+      // Restart session to apply new config
+      await this._codexService.stopSession();
+      await this._codexService.startSession();
+      
       // Notify about config change
       vscode.commands.executeCommand("codexia.configChanged");
     } catch (error) {

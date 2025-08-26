@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { Send, SendHorizontal } from 'lucide-react'
+import { Send, SendHorizontal } from 'lucide-react';
+import ReasoningEffortSelector from './ReasoningEffortSelector';
+import ProviderSelector from './ProviderSelector';
+import ModelSelector from './ModelSelector';
+import { postMessage, setupMessageListener } from '../utils/vscode-api';
 
 interface MessageInputProps {
   onSendMessage: (text: string) => void;
@@ -10,6 +14,19 @@ interface MessageInputProps {
 
 const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, onFocus }) => {
   const [inputText, setInputText] = useState('');
+  const [reasoningEffort, setReasoningEffort] = useState('high');
+  const [provider, setProvider] = useState('openai');
+  const [model, setModel] = useState('gpt-5');
+  const [configLoaded, setConfigLoaded] = useState(false);
+  
+  // Mock data for demo - in real app this would come from props or context
+  const providers = ['openai', 'anthropic', 'google', 'ollama'];
+  const modelOptions: { [key: string]: string[] } = {
+    openai: ['gpt-5', 'gpt-4o', 'gpt-4o-mini'],
+    anthropic: ['claude-4-sonnet'],
+    google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+    ollama: ['llama3.2', 'gpt-oss:20b', 'mistral']
+  };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -17,6 +34,24 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
       textareaRef.current.focus();
     }
   }, [onFocus]);
+
+  useEffect(() => {
+    // Request config on component mount
+    postMessage({ type: 'getConfig' });
+    
+    const cleanup = setupMessageListener((message) => {
+      if (message.type === 'configData') {
+        if (message.config) {
+          setProvider(message.config.provider || 'openai');
+          setModel(message.config.model || 'gpt-5');
+          setReasoningEffort(message.config.reasoning || 'high');
+          setConfigLoaded(true);
+        }
+      }
+    });
+
+    return cleanup;
+  }, []);
 
   const handleSubmit = () => {
     const text = inputText.trim();
@@ -33,6 +68,41 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleProviderChange = (newProvider: string) => {
+    setProvider(newProvider);
+    const availableModels = modelOptions[newProvider] || [];
+    const newModel = availableModels.length > 0 ? availableModels[0] : '';
+    setModel(newModel);
+    
+    // Disable OSS mode when selecting non-ollama providers
+    const useOss = newProvider === 'ollama';
+    
+    postMessage({
+      type: 'updateConfig',
+      config: { 
+        provider: newProvider, 
+        model: newModel,
+        useOss: useOss
+      }
+    });
+  };
+
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    postMessage({
+      type: 'updateConfig',
+      config: { model: newModel }
+    });
+  };
+
+  const handleReasoningChange = (newReasoning: string) => {
+    setReasoningEffort(newReasoning);
+    postMessage({
+      type: 'updateConfig',
+      config: { reasoning: newReasoning }
+    });
   };
 
   return (
@@ -53,7 +123,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
             fontSize: 'var(--vscode-font-size)',
             fontFamily: 'var(--vscode-font-family)'
           }}
-          minRows={2}
+          minRows={3}
           maxRows={10}
           disabled={isTyping}
         />
@@ -68,6 +138,22 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
         >
           <Send className='w-4 h-4' />
         </button>
+      </div>
+      <div className="flex justify-between items-center mt-2 gap-1">
+        <ProviderSelector 
+          value={provider}
+          onChange={handleProviderChange}
+          providers={providers}
+        />
+        <ModelSelector 
+          value={model}
+          onChange={handleModelChange}
+          models={modelOptions[provider] || []}
+        />
+        <ReasoningEffortSelector 
+          value={reasoningEffort}
+          onChange={handleReasoningChange}
+        />
       </div>
     </div>
   );

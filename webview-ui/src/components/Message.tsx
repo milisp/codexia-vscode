@@ -14,12 +14,26 @@ const Message: React.FC<MessageProps> = ({ message, index, onApproveExecution })
   const getTypeLabel = () => {
     switch (message.type) {
       case "user":
-        return "You";
+        return "";
       case "assistant":
-        return "Codexia";
+        return "Codex";
       case "exec-request":
         return "Execution Request";
       case "system":
+        // Try to extract tool command from message content
+        try {
+          const parsed = JSON.parse(message.content);
+          if (parsed.msg && parsed.msg.command) {
+            return parsed.msg.command.join(' ');
+          }
+          if (parsed.msg && parsed.msg.parsed_cmd && parsed.msg.parsed_cmd.length > 0) {
+            const toolCmd = parsed.msg.parsed_cmd[0];
+            const toolName = Object.keys(toolCmd)[0];
+            return toolName;
+          }
+        } catch (e) {
+          // If parsing fails, fall back to "System"
+        }
         return "System";
       default:
         return "Unknown";

@@ -4,6 +4,7 @@ import Message from './Message';
 import MessageInput from './MessageInput';
 import TypingIndicator from './TypingIndicator';
 import WorkingTasks from './WorkingTasks';
+import { useAppContext } from '../context/AppContext';
 
 interface ChatViewProps {
   isHidden: boolean;
@@ -16,6 +17,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   showAnnouncement, 
   hideAnnouncement 
 }) => {
+  const { showSettingsView, hideSettings } = useAppContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [workingTasks, setWorkingTasks] = useState<WorkingTask[]>([]);
@@ -47,6 +49,12 @@ const ChatView: React.FC<ChatViewProps> = ({
           break;
         case 'updateWorkingTasks':
           setWorkingTasks(message.tasks || []);
+          break;
+        case 'showSettings':
+          showSettingsView();
+          break;
+        case 'hideSettings':
+          hideSettings();
           break;
       }
     });

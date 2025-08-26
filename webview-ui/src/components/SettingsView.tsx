@@ -5,37 +5,56 @@ interface SettingsViewProps {
   onDone: () => void;
 }
 
-interface SettingsData {
-  apiKey: string;
+interface CodexConfig {
+  useOss: boolean;
   model: string;
-  temperature: number;
-  maxTokens: number;
-  autoSave: boolean;
-  theme: string;
+  reasoning: string;
+  provider: string;
+  approvalPolicy: string;
+  sandboxMode: string;
+  customArgs: string[];
+  envVars: { [key: string]: string };
+}
+
+interface SettingsData {
+  config: CodexConfig;
+  modelOptions: { [provider: string]: string[] };
+  providers: string[];
+  approvalPolicies: string[];
+  sandboxModes: string[];
+  providerEnvVars: { [provider: string]: string[] };
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
-  const [settings, setSettings] = useState<SettingsData>({
-    apiKey: '',
-    model: 'gpt-4',
-    temperature: 0.7,
-    maxTokens: 4000,
-    autoSave: true,
-    theme: 'dark'
+  const [settingsData, setSettingsData] = useState<SettingsData | null>(null);
+  const [config, setConfig] = useState<CodexConfig>({
+    useOss: true,
+    model: 'llama3.2',
+    reasoning: 'high',
+    provider: 'ollama',
+    approvalPolicy: 'on-request',
+    sandboxMode: 'workspace-write',
+    customArgs: [],
+    envVars: {},
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Request current settings from extension
-    postMessage({ type: 'getSettings' });
+    postMessage({ type: 'getConfig' });
     
     const cleanup = setupMessageListener((message) => {
-      if (message.type === 'settings') {
-        setSettings(message.settings || settings);
+      if (message.type === 'configData') {
+        setSettingsData({
+          config: message.config || config,
+          modelOptions: message.modelOptions || {},
+          providers: message.providers || [],
+          approvalPolicies: message.approvalPolicies || [],
+          sandboxModes: message.sandboxModes || [],
+          providerEnvVars: message.providerEnvVars || {},
+        });
+        setConfig(message.config || config);
         setLoading(false);
-      } else if (message.type === 'settingsSaved') {
-        setSaving(false);
       }
     });
 
@@ -45,158 +64,285 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
   const handleSave = () => {
     setSaving(true);
     postMessage({
-      type: 'saveSettings',
-      settings
+      type: 'updateConfig',
+      config
     });
+    // Simulate save completion
+    setTimeout(() => setSaving(false), 1000);
   };
 
   const handleReset = () => {
-    postMessage({ type: 'resetSettings' });
+    postMessage({ type: 'resetConfig' });
   };
 
-  const updateSetting = <K extends keyof SettingsData>(
+  const updateConfig = <K extends keyof CodexConfig>(
     key: K,
-    value: SettingsData[K]
+    value: CodexConfig[K]
   ) => {
-    setSettings(prev => ({
+    setConfig(prev => ({
       ...prev,
       [key]: value
     }));
   };
 
-  if (loading) {
+  const updateEnvVar = (key: string, value: string) => {
+    setConfig(prev => ({
+      ...prev,
+      envVars: {
+        ...prev.envVars,
+        [key]: value
+      }
+    }));
+  };
+
+  const updateCustomArgs = (args: string) => {
+    const argsArray = args.split('\n').filter(arg => arg.trim() !== '');
+    updateConfig('customArgs', argsArray);
+  };
+
+  const getCommandPreview = () => {
+    const args: string[] = ['codex'];
+    
+    if (config.useOss) {
+      args.push('--oss');
+      args.push('-c', 'model_provider=oss');
+    }
+    
+    if (config.provider && !config.useOss) {
+      args.push('-c', `model_provider=${config.provider}`);
+    }
+    
+    if (config.model) {
+      args.push('-c', `model="${config.model}"`);
+    }
+    
+    if (config.reasoning) {
+      args.push('-c', `model_reasoning_effort=${config.reasoning}`);
+    }
+    
+    if (config.approvalPolicy) {
+      args.push('-c', `approval_policy=${config.approvalPolicy}`);
+    }
+    
+    if (config.sandboxMode) {
+      args.push('-c', `sandbox_mode=${config.sandboxMode}`);
+    }
+    
+    if (config.customArgs.length > 0) {
+      args.push(...config.customArgs);
+    }
+    
+    return args.join(' ');
+  };
+
+  if (loading || !settingsData) {
     return (
-      <div className="settings-view">
-        <div className="settings-header">
-          <button onClick={onDone} className="back-button">
-            ← Back to Chat
-          </button>
-          <h2>Settings</h2>
+      <div className="flex flex-col h-full bg-[var(--vscode-editor-background)]">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--vscode-panel-border)]">
+          <h2 className="text-lg font-semibold text-[var(--vscode-foreground)] flex items-center gap-2">
+            ⚙️ Codexia Settings
+          </h2>
         </div>
-        <div className="loading">Loading settings...</div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-[var(--vscode-foreground)] opacity-70">Loading settings...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="settings-view">
-      <div className="settings-header">
-        <button onClick={onDone} className="back-button">
-          ← Back to Chat
+    <div className="flex flex-col h-full bg-[var(--vscode-editor-background)]">
+      <div className="flex items-center justify-between p-4 border-b border-[var(--vscode-panel-border)]">
+        <h2 className="text-lg font-semibold text-[var(--vscode-foreground)] flex items-center gap-2">
+          ⚙️ Codexia Settings
+        </h2>
+        <button
+          onClick={handleReset}
+          className="px-3 py-1.5 text-sm bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] border border-[var(--vscode-button-border)] rounded hover:bg-[var(--vscode-button-secondaryHoverBackground)] transition-colors"
+        >
+          Reset to Defaults
         </button>
-        <h2>Settings</h2>
       </div>
-      
-      <div className="settings-content">
-        <div className="settings-section">
-          <h3>API Configuration</h3>
-          
-          <div className="setting-item">
-            <label htmlFor="apiKey">API Key</label>
-            <input
-              id="apiKey"
-              type="password"
-              value={settings.apiKey}
-              onChange={(e) => updateSetting('apiKey', e.target.value)}
-              placeholder="Enter your API key"
-              className="setting-input"
-            />
-          </div>
 
-          <div className="setting-item">
-            <label htmlFor="model">Model</label>
-            <select
-              id="model"
-              value={settings.model}
-              onChange={(e) => updateSetting('model', e.target.value)}
-              className="setting-select"
-            >
-              <option value="gpt-4">GPT-4</option>
-              <option value="gpt-4-turbo">GPT-4 Turbo</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3>Generation Parameters</h3>
-          
-          <div className="setting-item">
-            <label htmlFor="temperature">Temperature: {settings.temperature}</label>
+      <div className="flex-1 overflow-auto p-4 space-y-6">
+        {/* OSS Mode */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
             <input
-              id="temperature"
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={settings.temperature}
-              onChange={(e) => updateSetting('temperature', parseFloat(e.target.value))}
-              className="setting-range"
-            />
-            <div className="range-labels">
-              <span>More focused</span>
-              <span>More creative</span>
-            </div>
-          </div>
-
-          <div className="setting-item">
-            <label htmlFor="maxTokens">Max Tokens</label>
-            <input
-              id="maxTokens"
-              type="number"
-              min="100"
-              max="8000"
-              value={settings.maxTokens}
-              onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
-              className="setting-input"
-            />
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3>Preferences</h3>
-          
-          <div className="setting-item checkbox-item">
-            <input
-              id="autoSave"
               type="checkbox"
-              checked={settings.autoSave}
-              onChange={(e) => updateSetting('autoSave', e.target.checked)}
-              className="setting-checkbox"
+              id="useOss"
+              checked={config.useOss}
+              onChange={(e) => updateConfig('useOss', e.target.checked)}
+              className="w-4 h-4"
             />
-            <label htmlFor="autoSave">Auto-save chat sessions</label>
+            <label htmlFor="useOss" className="text-[var(--vscode-foreground)] font-medium">
+              Use OSS Mode (--oss)
+            </label>
           </div>
+          <p className="text-sm text-[var(--vscode-descriptionForeground)] ml-7">
+            Enable to use local open source models via Ollama
+          </p>
+        </div>
 
-          <div className="setting-item">
-            <label htmlFor="theme">Theme</label>
+        {/* Provider Selection */}
+        {!config.useOss && (
+          <div className="space-y-3">
+            <label htmlFor="provider" className="block text-[var(--vscode-foreground)] font-medium">
+              Provider
+            </label>
             <select
-              id="theme"
-              value={settings.theme}
-              onChange={(e) => updateSetting('theme', e.target.value)}
-              className="setting-select"
+              id="provider"
+              value={config.provider}
+              onChange={(e) => updateConfig('provider', e.target.value)}
+              className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none"
             >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="auto">Auto (Follow VS Code)</option>
+              <option value="">Select a provider...</option>
+              {settingsData.providers.map(provider => (
+                <option key={provider} value={provider}>{provider}</option>
+              ))}
             </select>
           </div>
+        )}
+
+        {/* Environment Variables */}
+        {!config.useOss && config.provider && settingsData.providerEnvVars[config.provider] && settingsData.providerEnvVars[config.provider].length > 0 && (
+          <div className="space-y-3">
+            <label className="block text-[var(--vscode-foreground)] font-medium">API Key</label>
+            {settingsData.providerEnvVars[config.provider].map(envVar => (
+              <div key={envVar} className="space-y-2">
+                <input
+                  type="password"
+                  placeholder={`Enter ${envVar}`}
+                  value={config.envVars[envVar] || ''}
+                  onChange={(e) => updateEnvVar(envVar, e.target.value)}
+                  className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none"
+                />
+              </div>
+            ))}
+            <p className="text-sm text-[var(--vscode-descriptionForeground)]">
+              Set environment variables for API authentication
+            </p>
+          </div>
+        )}
+
+        {/* Model Selection */}
+        <div className="space-y-3">
+          <label htmlFor="model" className="block text-[var(--vscode-foreground)] font-medium">
+            Model (-m)
+          </label>
+          <select
+            id="model"
+            value={config.model}
+            onChange={(e) => updateConfig('model', e.target.value)}
+            className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none"
+          >
+            <option value="">Select a model...</option>
+            {config.useOss
+              ? settingsData.modelOptions.ollama?.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))
+              : settingsData.modelOptions[config.provider]?.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))
+            }
+          </select>
         </div>
 
-        <div className="settings-actions">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="save-button"
+        {/* Reasoning */}
+        <div className="space-y-3">
+          <label htmlFor="reasoning" className="block text-[var(--vscode-foreground)] font-medium">
+            Reasoning Effort
+          </label>
+          <select
+            id="reasoning"
+            value={config.reasoning}
+            onChange={(e) => updateConfig('reasoning', e.target.value)}
+            className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none"
           >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
-          <button
-            onClick={handleReset}
-            className="reset-button"
-          >
-            Reset to Defaults
-          </button>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
         </div>
+
+        {/* Approval Policy */}
+        <div className="space-y-3">
+          <label htmlFor="approval" className="block text-[var(--vscode-foreground)] font-medium">
+            Approval Policy
+          </label>
+          <select
+            id="approval"
+            value={config.approvalPolicy}
+            onChange={(e) => updateConfig('approvalPolicy', e.target.value)}
+            className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none"
+          >
+            <option value="">Select approval policy...</option>
+            {settingsData.approvalPolicies.map(policy => (
+              <option key={policy} value={policy}>{policy}</option>
+            ))}
+          </select>
+          <p className="text-sm text-[var(--vscode-descriptionForeground)]">
+            Controls when you need to approve AI actions
+          </p>
+        </div>
+
+        {/* Sandbox Mode */}
+        <div className="space-y-3">
+          <label htmlFor="sandbox" className="block text-[var(--vscode-foreground)] font-medium">
+            Sandbox Mode
+          </label>
+          <select
+            id="sandbox"
+            value={config.sandboxMode}
+            onChange={(e) => updateConfig('sandboxMode', e.target.value)}
+            className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none"
+          >
+            <option value="">Select sandbox mode...</option>
+            {settingsData.sandboxModes.map(mode => (
+              <option key={mode} value={mode}>{mode}</option>
+            ))}
+          </select>
+          <p className="text-sm text-[var(--vscode-descriptionForeground)]">
+            Controls what files AI can access and modify
+          </p>
+        </div>
+
+        {/* Custom Arguments */}
+        <div className="space-y-3">
+          <label htmlFor="customArgs" className="block text-[var(--vscode-foreground)] font-medium">
+            Custom Arguments
+          </label>
+          <textarea
+            id="customArgs"
+            value={config.customArgs.join('\n')}
+            onChange={(e) => updateCustomArgs(e.target.value)}
+            placeholder="Additional codex arguments (one per line)"
+            rows={4}
+            className="w-full p-2 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-[var(--vscode-input-border)] rounded focus:border-[var(--vscode-focusBorder)] outline-none resize-none"
+          />
+          <p className="text-sm text-[var(--vscode-descriptionForeground)]">
+            Additional command line arguments for codex (advanced)
+          </p>
+        </div>
+
+        {/* Command Preview */}
+        <div className="space-y-3">
+          <label className="block text-[var(--vscode-foreground)] font-medium">Command Preview</label>
+          <div className="p-3 bg-[var(--vscode-textCodeBlock-background)] border border-[var(--vscode-panel-border)] rounded font-mono text-sm text-[var(--vscode-textPreformat-foreground)] overflow-x-auto">
+            {getCommandPreview()}
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="p-4 border-t border-[var(--vscode-panel-border)]">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full py-2 px-4 bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] rounded hover:bg-[var(--vscode-button-hoverBackground)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {saving ? 'Saving...' : 'Save Configuration'}
+        </button>
       </div>
     </div>
   );

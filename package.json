@@ -45,12 +45,6 @@
           "id": "codexia.chatView",
           "name": "Chat",
           "icon": "$(comment-discussion)"
-        },
-        {
-          "type": "webview",
-          "id": "codexia.settingsView",
-          "name": "Settings",
-          "icon": "$(settings)"
         }
       ]
     },

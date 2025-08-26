@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { CodexService } from "./codexService";
+import { ConfigManager } from "./config";
 
 interface ChatMessage {
   id: string;
@@ -26,6 +27,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly _extensionContext: vscode.ExtensionContext,
     private readonly _codexService: CodexService,
+    private readonly _configManager: ConfigManager,
   ) {}
 
   public resolveWebviewView(
@@ -72,6 +74,15 @@ export class ChatProvider implements vscode.WebviewViewProvider {
           case "resetSettings":
             this._handleResetSettings();
             break;
+          case "getConfig":
+            this._handleGetConfig();
+            break;
+          case "updateConfig":
+            this._handleUpdateConfig(message.config);
+            break;
+          case "resetConfig":
+            this._handleResetConfig();
+            break;
         }
       },
       undefined,
@@ -87,7 +98,19 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       this._view.show?.(true);
       this._clearMessages();
       this._view.webview.postMessage({
+        type: "hideSettings",
+      });
+      this._view.webview.postMessage({
         type: "focusInput",
+      });
+    }
+  }
+
+  public showSettings() {
+    if (this._view) {
+      this._view.show?.(true);
+      this._view.webview.postMessage({
+        type: "showSettings",
       });
     }
   }
@@ -451,16 +474,60 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     this._handleGetSettings(); // Send back default settings
   }
 
+  private _handleGetConfig(): void {
+    const config = this._configManager.getConfig();
+    const modelOptions = ConfigManager.getModelOptions();
+    const providers = ConfigManager.getProviderOptions();
+    const approvalPolicies = ConfigManager.getApprovalPolicyOptions();
+    const sandboxModes = ConfigManager.getSandboxModeOptions();
+    const providerEnvVars = ConfigManager.getProviderEnvVars();
+
+    this._view?.webview.postMessage({
+      type: "configData",
+      config,
+      modelOptions,
+      providers,
+      approvalPolicies,
+      sandboxModes,
+      providerEnvVars,
+    });
+  }
+
+  private async _handleUpdateConfig(config: any): Promise<void> {
+    try {
+      await this._configManager.saveConfig(config);
+      vscode.window.showInformationMessage(
+        "Codexia configuration updated successfully!",
+      );
+
+      // Notify about config change
+      vscode.commands.executeCommand("codexia.configChanged");
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to save configuration: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async _handleResetConfig(): Promise<void> {
+    try {
+      await this._configManager.saveConfig({});
+      this._handleGetConfig();
+      vscode.window.showInformationMessage("Configuration reset to defaults!");
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to reset configuration: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   private _generateId(): string {
     return Math.random().toString(36).substr(2, 9);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionContext.extensionUri, "out", "webview-ui", "index.js"),
-    );
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionContext.extensionUri, "out", "webview-ui", "index.css"),
+      vscode.Uri.joinPath(this._extensionContext.extensionUri, "out", "webview-ui", "assets", "main.js"),
     );
     const nonce = this._getNonce();
 
@@ -468,9 +535,8 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-eval';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-eval'; font-src ${webview.cspSource}; img-src ${webview.cspSource} data:;">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href="${styleUri}" rel="stylesheet">
         <title>Codexia Chat</title>
       </head>
       <body>

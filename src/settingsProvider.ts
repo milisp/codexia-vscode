@@ -98,32 +98,23 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    const styleResetUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._extensionContext.extensionUri,
-        "media",
-        "reset.css",
-      ),
-    );
-    const styleVSCodeUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._extensionContext.extensionUri,
-        "media",
-        "vscode.css",
-      ),
-    );
-    const styleMainUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(
-        this._extensionContext.extensionUri,
-        "media",
-        "settings.css",
-      ),
-    );
+    // Get URIs for the webview build
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this._extensionContext.extensionUri,
-        "media",
+        "out",
+        "webview-ui",
+        "assets",
         "settings.js",
+      ),
+    );
+    const styleUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionContext.extensionUri,
+        "out",
+        "webview-ui",
+        "assets",
+        "settings.css",
       ),
     );
 
@@ -135,89 +126,11 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 				<meta charset="UTF-8">
 				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<link href="${styleResetUri}" rel="stylesheet">
-				<link href="${styleVSCodeUri}" rel="stylesheet">
-				<link href="${styleMainUri}" rel="stylesheet">
+				<link href="${styleUri}" rel="stylesheet">
 				<title>Codexia Settings</title>
 			</head>
 			<body>
-				<div class="container">
-					<div class="header">
-						<h2>⚙️ Codexia Settings</h2>
-						<button id="resetButton" class="secondary-button">Reset to Defaults</button>
-					</div>
-
-					<div class="settings-form">
-						<!-- OSS Mode -->
-						<div class="form-group">
-							<label class="form-label">
-								<input type="checkbox" id="useOss"> Use OSS Mode (--oss)
-							</label>
-							<p class="form-help">Enable to use local open source models via Ollama</p>
-						</div>
-
-						<!-- Provider Selection -->
-						<div class="form-group" id="providerGroup">
-							<label class="form-label" for="providerSelect">Provider</label>
-							<select id="providerSelect" class="form-select">
-								<option value="">Select a provider...</option>
-							</select>
-						</div>
-
-						<!-- Environment Variables -->
-						<div class="form-group" id="envVarsGroup" style="display: none;">
-							<label class="form-label">API Key</label>
-							<div id="envVarInputs"></div>
-							<p class="form-help">Set environment variables for API authentication</p>
-						</div>
-
-						<!-- Model Selection -->
-						<div class="form-group">
-							<label class="form-label" for="modelSelect">Model (-m)</label>
-							<select id="modelSelect" class="form-select">
-								<option value="">Select a model...</option>
-							</select>
-							<input type="text" id="customModel" class="form-input" placeholder="Or enter custom model name" style="display: none;">
-						</div>
-
-						<!-- Approval Policy -->
-						<div class="form-group">
-							<label class="form-label" for="approvalSelect">Approval Policy</label>
-							<select id="approvalSelect" class="form-select">
-								<option value="">Select approval policy...</option>
-							</select>
-							<p class="form-help">Controls when you need to approve AI actions</p>
-						</div>
-
-						<!-- Sandbox Mode -->
-						<div class="form-group">
-							<label class="form-label" for="sandboxSelect">Sandbox Mode</label>
-							<select id="sandboxSelect" class="form-select">
-								<option value="">Select sandbox mode...</option>
-							</select>
-							<p class="form-help">Controls what files AI can access and modify</p>
-						</div>
-
-						<!-- Custom Arguments -->
-						<div class="form-group">
-							<label class="form-label" for="customArgs">Custom Arguments</label>
-							<textarea id="customArgs" class="form-textarea" placeholder="Additional codex arguments (one per line)"></textarea>
-							<p class="form-help">Additional command line arguments for codex (advanced)</p>
-						</div>
-
-						<!-- Command Preview -->
-						<div class="form-group">
-							<label class="form-label">Command Preview</label>
-							<div id="commandPreview" class="command-preview">codex proto</div>
-						</div>
-
-						<!-- Actions -->
-						<div class="form-actions">
-							<button id="saveButton" class="primary-button">Save Configuration</button>
-						</div>
-					</div>
-				</div>
-
+				<div id="settings-root"></div>
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;

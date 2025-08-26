@@ -15,6 +15,7 @@ const AppContent: React.FC = () => {
     hideAnnouncement,
   } = useAppContext();
 
+
   return (
     <>
       {showSettings && <SettingsView onDone={hideSettings} />}

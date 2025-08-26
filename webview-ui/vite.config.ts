@@ -31,10 +31,11 @@ export default defineConfig({
 		reportCompressedSize: false,
 		rollupOptions: {
 			output: {
+				format: 'iife',
 				inlineDynamicImports: true,
-				entryFileNames: `[name].js`,
-				chunkFileNames: `[name].js`,
-				assetFileNames: `[name].[ext]`,
+				entryFileNames: `assets/main.js`,
+				chunkFileNames: `assets/[name].js`,
+				assetFileNames: `assets/[name].[ext]`,
 			},
 		},
 		chunkSizeWarningLimit: 100000,

@@ -17,7 +17,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   showAnnouncement, 
   hideAnnouncement 
 }) => {
-  const { showSettingsView, hideSettings } = useAppContext();
+  const { showSettingsView, hideSettings, navigateToHistory } = useAppContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [workingTasks, setWorkingTasks] = useState<WorkingTask[]>([]);
@@ -63,6 +63,10 @@ const ChatView: React.FC<ChatViewProps> = ({
           break;
         case 'hideSettings':
           hideSettings();
+          break;
+        case 'showHistory':
+          console.log('[ChatView] Received showHistory message, calling navigateToHistory');
+          navigateToHistory();
           break;
         case 'contextFilesData':
           setContextFiles(message.files || []);

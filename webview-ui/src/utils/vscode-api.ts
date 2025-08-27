@@ -14,11 +14,17 @@ export const vscode = window.acquireVsCodeApi();
 import { ChatMessage, WorkingTask, ChatSession } from '../types/shared';
 
 export interface MessageFromExtension {
-  type: "updateMessages" | "setTyping" | "focusInput" | "updateWorkingTasks" | "chatHistory" | "settings" | "settingsSaved" | "configData" | "showSettings" | "hideSettings" | "contextFilesData" | "contextContentData";
+  type: "updateMessages" | "setTyping" | "focusInput" | "updateWorkingTasks" | "chatHistory" | "settings" | "settingsSaved" | "configData" | "showSettings" | "hideSettings" | "showHistory" | "contextFilesData" | "contextContentData" | "conversationHistoryData" | "showSessionHistory";
   messages?: ChatMessage[];
   isTyping?: boolean;
   tasks?: WorkingTask[];
-  sessions?: ChatSession[];
+  sessions?: ChatSession[] | Array<{
+    id: string;
+    name: string;
+    timestamp: number;
+    messageCount: number;
+    entries: any[];
+  }>;
   settings?: any;
   config?: any;
   modelOptions?: { [provider: string]: string[] };
@@ -32,10 +38,15 @@ export interface MessageFromExtension {
     name: string;
   }>;
   content?: string;
+  data?: {
+    conversation_id: string;
+    entries: any[];
+  };
+  error?: string;
 }
 
 export interface MessageToExtension {
-  type: "sendMessage" | "clearChat" | "approveExecution" | "getChatHistory" | "loadChatSession" | "deleteChatSession" | "getSettings" | "saveSettings" | "resetSettings" | "getConfig" | "updateConfig" | "resetConfig" | "getContextFiles" | "removeContextFile" | "getContextContent";
+  type: "sendMessage" | "clearChat" | "approveExecution" | "getChatHistory" | "loadChatSession" | "deleteChatSession" | "getSettings" | "saveSettings" | "resetSettings" | "getConfig" | "updateConfig" | "resetConfig" | "getContextFiles" | "removeContextFile" | "getContextContent" | "getConversationHistory" | "resumeConversation" | "loadSessionFromHistory" | "getSessionHistory";
   text?: string;
   execRequestId?: string;
   approved?: boolean;
@@ -44,6 +55,10 @@ export interface MessageToExtension {
   config?: any;
   path?: string;
   files?: string[];
+  conversationId?: string;
+  dropLastMessages?: number;
+  sessionEntries?: any[];
+  sessionName?: string;
 }
 
 export type { ChatMessage, WorkingTask, ChatSession };

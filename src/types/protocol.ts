@@ -42,5 +42,24 @@ export interface EventMsg {
   unified_diff?: string;
   cwd?: string;
   reason?: string;
+  conversation_id?: string;
+  entries?: ResponseItem[];
   [key: string]: any;
+}
+
+export interface ResponseItem {
+  id?: string;
+  role?: string;
+  content?: ContentItem[];
+  name?: string;
+  arguments?: string;
+  call_id?: string;
+  output?: any;
+  summary?: any[];
+  encrypted_content?: string;
+}
+
+export interface ContentItem {
+  type?: string;
+  text?: string;
 }

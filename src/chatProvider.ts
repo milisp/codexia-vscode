@@ -5,6 +5,7 @@ import { ChatMessage } from "./chatTypes";
 import { ChatEventHandlers } from "./chatEventHandlers";
 import { ChatMessageHandler } from "./chatMessageHandler";
 import { ContextManager } from "./contextManager";
+import { SessionHistoryService, ParsedSession } from "./sessionHistoryService";
 import * as path from "path";
 
 export class ChatProvider implements vscode.WebviewViewProvider {
@@ -21,6 +22,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     private readonly _codexService: CodexService,
     private readonly _configManager: ConfigManager,
     private readonly _contextManager: ContextManager,
+    private readonly _sessionHistoryService?: SessionHistoryService,
   ) {
     this._eventHandlers = new ChatEventHandlers(
       this._codexService,
@@ -92,6 +94,18 @@ export class ChatProvider implements vscode.WebviewViewProvider {
           case "getContextContent":
             this._handleGetContextContent(message.files);
             break;
+          case "getConversationHistory":
+            this._handleGetConversationHistory();
+            break;
+          case "resumeConversation":
+            this._handleResumeConversation(message.conversationId, message.dropLastMessages);
+            break;
+          case "loadSessionFromHistory":
+            this._handleLoadSessionFromHistory(message.sessionId, message.sessionEntries, message.sessionName);
+            break;
+          case "getSessionHistory":
+            this._handleGetSessionHistory();
+            break;
         }
       },
       undefined,
@@ -134,6 +148,38 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   public clearHistory() {
     this._messageHandler.clearMessages();
     this._codexService.stopSession();
+  }
+
+  public showSessionHistory(sessions: ParsedSession[]) {
+    console.log('[ChatProvider] showSessionHistory called with', sessions.length, 'sessions');
+    
+    if (this._view) {
+      this._view.show?.(true);
+      
+      // First, tell the frontend to show the history view
+      this._view.webview.postMessage({
+        type: "showHistory",
+      });
+      
+      // Convert sessions to the format expected by the webview
+      const sessionData = sessions.map(session => ({
+        id: session.sessionId,
+        name: session.name,
+        timestamp: session.timestamp.getTime(),
+        messageCount: session.messageCount,
+        entries: session.entries
+      }));
+
+      console.log('[ChatProvider] Sending session data to webview:', sessionData.length, 'sessions');
+      
+      // Then send the session data
+      this._view.webview.postMessage({
+        type: "showSessionHistory",
+        sessions: sessionData
+      });
+    } else {
+      console.log('[ChatProvider] No webview available to show session history');
+    }
   }
 
   private _setupCodexEventListeners(): void {
@@ -471,6 +517,123 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       type: "contextContentData",
       content: contextContent
     });
+  }
+
+  private async _handleGetConversationHistory(): Promise<void> {
+    try {
+      const historyData = await this._codexService.getConversationHistory();
+      this._view?.webview.postMessage({
+        type: "conversationHistoryData",
+        data: historyData
+      });
+    } catch (error) {
+      console.error("Failed to get conversation history:", error);
+      this._view?.webview.postMessage({
+        type: "conversationHistoryData",
+        data: null,
+        error: error instanceof Error ? error.message : "Failed to get conversation history"
+      });
+    }
+  }
+
+  private async _handleGetSessionHistory(): Promise<void> {
+    try {
+      console.log('[ChatProvider] Getting session history...');
+      if (!this._sessionHistoryService) {
+        throw new Error("Session history service not available");
+      }
+
+      const sessions = await this._sessionHistoryService.getAllSessions(20);
+      console.log(`[ChatProvider] Retrieved ${sessions.length} sessions`);
+
+      // Convert sessions to the format expected by the webview
+      const sessionData = sessions.map(session => ({
+        id: session.sessionId,
+        name: session.name,
+        timestamp: session.timestamp.getTime(),
+        messageCount: session.messageCount,
+        entries: session.entries
+      }));
+
+      this._view?.webview.postMessage({
+        type: "showSessionHistory",
+        sessions: sessionData
+      });
+    } catch (error) {
+      console.error("Failed to get session history:", error);
+      this._view?.webview.postMessage({
+        type: "showSessionHistory",
+        sessions: [],
+        error: error instanceof Error ? error.message : "Failed to get session history"
+      });
+    }
+  }
+
+  private async _handleResumeConversation(conversationId: string, dropLastMessages: number): Promise<void> {
+    try {
+      console.log(`Starting resume conversation: conversationId=${conversationId}, dropLastMessages=${dropLastMessages}`);
+      
+      // Clear current messages
+      this._messageHandler.clearMessages();
+      
+      // Show progress message
+      this._eventHandlers.onBackgroundEvent({
+        message: `🔄 Resuming conversation by dropping last ${dropLastMessages} messages...`
+      });
+      
+      // Fork the conversation
+      const forkResult = await this._codexService.forkConversation([], dropLastMessages);
+      
+      if (forkResult.success) {
+        this._eventHandlers.onBackgroundEvent({
+          message: `✅ Successfully resumed conversation! Kept ${forkResult.keptMessages} messages, dropped ${forkResult.droppedMessages} messages.`
+        });
+      } else {
+        throw new Error("Fork conversation returned unsuccessful result");
+      }
+      
+    } catch (error) {
+      console.error("Failed to resume conversation:", error);
+      this._eventHandlers.onBackgroundEvent({
+        message: `❌ Failed to resume conversation: ${error instanceof Error ? error.message : "Unknown error"}`
+      });
+    }
+  }
+
+  private async _handleLoadSessionFromHistory(sessionId: string, sessionEntries: any[], sessionName: string): Promise<void> {
+    try {
+      console.log(`Loading session from history: ${sessionName} (${sessionId})`);
+      
+      // Clear current messages
+      this._messageHandler.clearMessages();
+      
+      // Show progress message
+      this._eventHandlers.onBackgroundEvent({
+        message: `🔄 Loading session "${sessionName}" with ${sessionEntries.length} entries...`
+      });
+      
+      // Resume from session
+      const resumeResult = await this._codexService.resumeFromSession(sessionEntries, sessionName);
+      
+      if (resumeResult.success) {
+        this._eventHandlers.onBackgroundEvent({
+          message: `✅ Successfully loaded session "${sessionName}"! Found ${resumeResult.userMessages} user messages and ${resumeResult.assistantMessages} assistant messages.`
+        });
+        
+        // Add some context about what was loaded
+        this._eventHandlers.onBackgroundEvent({
+          message: `📋 Session context loaded. You can now continue the conversation from where it left off. Note: Due to current limitations, the full conversation history may not be immediately visible, but the session context should be available.`
+        });
+      } else {
+        throw new Error("Resume from session returned unsuccessful result");
+      }
+      
+    } catch (error) {
+      console.error("Failed to load session from history:", error);
+      this._eventHandlers.onBackgroundEvent({
+        message: `❌ Failed to load session: ${error instanceof Error ? error.message : "Unknown error"}`
+      });
+    }
   }
 
   private _getNonce(): string {

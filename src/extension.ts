@@ -6,6 +6,7 @@ import { DiffViewerManager } from "./diffViewer";
 import { registerDevCommands } from "./devCommands";
 import { ContextManager } from "./contextManager";
 import { FileExplorerProvider } from "./fileExplorerProvider";
+import { SessionHistoryService } from "./sessionHistoryService";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("Codexia extension is now active!");
@@ -14,7 +15,8 @@ export function activate(context: vscode.ExtensionContext) {
   const configManager = new ConfigManager(context);
   const codexService = new CodexService(configManager);
   const contextManager = new ContextManager();
-  const chatProvider = new ChatProvider(context, codexService, configManager, contextManager);
+  const sessionHistoryService = new SessionHistoryService();
+  const chatProvider = new ChatProvider(context, codexService, configManager, contextManager, sessionHistoryService);
   const diffViewer = DiffViewerManager.getInstance();
 
   // Initialize file explorer
@@ -111,6 +113,28 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  const viewHistoryCommand = vscode.commands.registerCommand(
+    "codexia.viewHistory",
+    async () => {
+      console.log("[Extension] viewHistory command called");
+      try {
+        console.log("[Extension] Getting session files...");
+        const sessionFiles = await sessionHistoryService.getSessionFiles();
+        console.log(`[Extension] Found ${sessionFiles.length} session files:`, sessionFiles.map(f => f.name));
+        
+        const sessions = await sessionHistoryService.getAllSessions(20); // Load first 20 sessions
+        console.log(`[Extension] Parsed ${sessions.length} sessions:`, sessions.map(s => ({ name: s.name, entries: s.entries.length })));
+        
+        chatProvider.showSessionHistory(sessions);
+      } catch (error) {
+        console.error("[Extension] Error loading session history:", error);
+        vscode.window.showErrorMessage(
+          `Failed to load session history: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    },
+  );
+
   context.subscriptions.push(
     chatViewProvider,
     newTaskCommand,
@@ -120,6 +144,7 @@ export function activate(context: vscode.ExtensionContext) {
     addToContextCommand,
     removeFromContextCommand,
     refreshCommand,
+    viewHistoryCommand,
   );
 
   registerDevCommands(context);

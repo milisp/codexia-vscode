@@ -191,6 +191,15 @@ export function handleCodexEvent(service: CodexService, line: string): void {
       return;
     }
 
+    if (event.msg.type === "conversation_history") {
+      console.log("Conversation history received:", event.msg);
+      service.emit("conversation-history", {
+        conversation_id: event.msg.conversation_id,
+        entries: event.msg.entries
+      });
+      return;
+    }
+
     if (event.msg.type === "error" || event.msg.type === "stream_error") {
       console.log("Error event received:", event.msg.type, event.msg);
       service.emit("error-event", {

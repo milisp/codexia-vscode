@@ -89,6 +89,11 @@
         "command": "codexia.refresh",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "codexia.viewHistory",
+        "title": "View Session History",
+        "icon": "$(history)"
       }
     ],
     "menus": {
@@ -106,6 +111,11 @@
         {
           "command": "codexia.clearHistory",
           "group": "navigation@3",
+          "when": "view == codexia.chatView"
+        },
+        {
+          "command": "codexia.viewHistory",
+          "group": "navigation@4",
           "when": "view == codexia.chatView"
         },
         {

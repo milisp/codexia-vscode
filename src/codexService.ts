@@ -307,6 +307,114 @@ export class CodexService extends EventEmitter {
     this._sendSubmission(submission);
   }
 
+  public async getConversationHistory(): Promise<any> {
+    const submission: Submission = {
+      id: generateId(),
+      op: { type: "get_history" },
+    };
+
+    return new Promise((resolve, reject) => {
+      let resolved = false;
+      
+      const onConversationHistory = (data: any) => {
+        if (!resolved) {
+          resolved = true;
+          cleanup();
+          resolve(data);
+        }
+      };
+
+      const cleanup = () => {
+        this.removeListener("conversation-history", onConversationHistory);
+      };
+
+      this.on("conversation-history", onConversationHistory);
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        if (!resolved) {
+          cleanup();
+          reject(new Error("Get conversation history timeout"));
+        }
+      }, 10000);
+
+      try {
+        this._sendSubmission(submission);
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    });
+  }
+
+  public async forkConversation(conversationHistory: any[], dropLastMessages: number): Promise<any> {
+    // First get current conversation history if not provided
+    let historyToUse = conversationHistory;
+    if (!historyToUse) {
+      try {
+        const historyData = await this.getConversationHistory();
+        historyToUse = historyData.entries || [];
+      } catch (error) {
+        throw new Error(`Failed to get conversation history: ${error}`);
+      }
+    }
+
+    // Calculate messages to keep (total - dropLastMessages)
+    const messagesToKeep = Math.max(0, historyToUse.length - dropLastMessages);
+    const truncatedHistory = historyToUse.slice(0, messagesToKeep);
+
+    console.log(`Forking conversation: keeping ${messagesToKeep} messages, dropping last ${dropLastMessages} messages`);
+
+    // For now, since the Codex CLI fork_conversation isn't directly exposed via protocol,
+    // we'll restart the session and provide the truncated history as initial context
+    await this.stopSession();
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Start new session 
+    // Note: We'd need to modify the Codex spawn to accept initial_history parameter
+    // For now, we'll just restart and notify about the intended resume point
+    await this.startSession();
+    
+    return {
+      success: true,
+      keptMessages: messagesToKeep,
+      droppedMessages: dropLastMessages,
+      truncatedHistory: truncatedHistory
+    };
+  }
+
+  public async resumeFromSession(sessionEntries: any[], sessionName: string): Promise<any> {
+    console.log(`Resuming from session: ${sessionName} with ${sessionEntries.length} entries`);
+    
+    // Stop current session
+    await this.stopSession();
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Start new session 
+    await this.startSession();
+    
+    // For now, we can't directly load history into Codex CLI via protocol
+    // But we can provide a summary of what we're trying to restore
+    const userMessages = sessionEntries.filter(entry => 
+      entry.role === 'user' || 
+      (entry.type === 'user_input' && entry.items)
+    ).length;
+    
+    const assistantMessages = sessionEntries.filter(entry => 
+      entry.role === 'assistant' || 
+      entry.type === 'agent_message'
+    ).length;
+    
+    return {
+      success: true,
+      sessionName,
+      totalEntries: sessionEntries.length,
+      userMessages,
+      assistantMessages,
+      entries: sessionEntries
+    };
+  }
+
   public async stopSession(): Promise<void> {
     if (this._currentProcess && !this._currentProcess.killed) {
       // Send graceful shutdown

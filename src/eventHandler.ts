@@ -46,12 +46,14 @@ export function handleCodexEvent(service: CodexService, line: string): void {
 
     if (event.msg.type === "exec_approval_request") {
       console.log("exec_approval_request received:", {
+        event_id: event.id,
         call_id: event.msg.call_id,
         command: event.msg.command,
         cwd: event.msg.cwd,
         reason: event.msg.reason
       });
       service.emit("exec-approval-request", {
+        event_id: event.id,
         call_id: event.msg.call_id,
         command: event.msg.command,
         cwd: event.msg.cwd,
@@ -178,6 +180,16 @@ export function handleCodexEvent(service: CodexService, line: string): void {
     if (event.msg.type === "turn_diff") {
       console.log("Turn diff received, length:", event.msg.unified_diff?.length || 0);
       service.emit("turn-diff", event.msg.unified_diff || "");
+      return;
+    }
+
+    if (event.msg.type === "error" || event.msg.type === "stream_error") {
+      console.log("Error event received:", event.msg.type, event.msg);
+      service.emit("error-event", {
+        type: event.msg.type,
+        message: event.msg.message || event.msg.error || "An error occurred",
+        details: event.msg
+      });
       return;
     }
 

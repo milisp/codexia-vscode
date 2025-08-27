@@ -26,7 +26,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
     openrouter: ['openai/gpt-oss-20b:free', 'qwen/qwen3-coder:free', 'moonshotai/kimi-k2:free'],
     ollama: ['llama3.2', 'gpt-oss:20b', 'mistral'],
     anthropic: ['claude-4-sonnet'],
-    google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+    google: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

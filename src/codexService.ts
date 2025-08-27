@@ -277,6 +277,7 @@ export class CodexService extends EventEmitter {
     };
 
     console.log("Sending exec approval:", JSON.stringify(submission, null, 2));
+    console.log("Exec approval - requestId:", requestId, "approved:", approved);
     this._sendSubmission(submission);
   }
 

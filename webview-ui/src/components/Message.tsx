@@ -60,7 +60,7 @@ const Message: React.FC<MessageProps> = ({ message, index, onApproveExecution })
     return DOMPurify.sanitize(formatted);
   };
 
-  const isCollapsible = message.type === "exec-request" || message.type === "system";
+  const isCollapsible = message.type === "system";
   const timestamp = new Date(message.timestamp).toLocaleTimeString();
 
   const baseClasses = "mb-4 p-3 rounded-lg relative";

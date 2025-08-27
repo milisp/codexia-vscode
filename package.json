@@ -58,7 +58,7 @@
       {
         "command": "codexia.newTask",
         "title": "New Task",
-        "icon": "$(add)"
+        "icon": "$(edit)"
       },
       {
         "command": "codexia.openSettings",

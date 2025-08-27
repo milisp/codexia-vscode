@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Send, SendHorizontal } from 'lucide-react';
 import ReasoningEffortSelector from './ReasoningEffortSelector';
-import ProviderSelector from './ProviderSelector';
-import ModelSelector from './ModelSelector';
+import ProviderModelSelector from './ProviderModelSelector';
 import ContextBadge from './ContextBadge';
 import { postMessage, setupMessageListener } from '../utils/vscode-api';
 
@@ -163,15 +162,13 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
         </button>
       </div>
       <div className="flex justify-between items-center mt-2 gap-1">
-        <ProviderSelector 
-          value={provider}
-          onChange={handleProviderChange}
+        <ProviderModelSelector 
+          provider={provider}
+          model={model}
           providers={providers}
-        />
-        <ModelSelector 
-          value={model}
-          onChange={handleModelChange}
-          models={modelOptions[provider] || []}
+          modelOptions={modelOptions}
+          onProviderChange={handleProviderChange}
+          onModelChange={handleModelChange}
         />
         <ReasoningEffortSelector 
           value={reasoningEffort}

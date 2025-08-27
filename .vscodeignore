@@ -9,3 +9,16 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+node_modules/**
+webview-ui/node_modules/**
+webview-ui/src/**
+webview-ui/package.json
+webview-ui/package-lock.json
+webview-ui/pnpm-lock.yaml
+webview-ui/tsconfig*.json
+webview-ui/vite.config.ts
+webview-ui/tailwind.config.js
+pnpm-lock.yaml
+*.vsix
+docs/**
+test-*.html

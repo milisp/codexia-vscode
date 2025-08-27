@@ -8,7 +8,7 @@
 A VSCode extension that provides a chat interface for the OpenAI Codex CLI, allowing you to interact with AI coding assistants directly from your editor.
 
 > [!TIP]
-> **⭐ Star the repo and follow [milisp](https://x.com/lisp_mi/status/1960125815469076891) on X and I will follow back all devs**.
+> **⭐ Star the repo and follow **milisp** on [Twitter](https://x.com/lisp_mi/status/1960125815469076891) and [github](https://github.com/milisp)**.
 
 <p align="center">
     <img src="./assets/codexia-vscode.png" alt="Codexia Chat Interface" width="25%" />

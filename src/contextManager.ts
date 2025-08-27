@@ -9,15 +9,19 @@ class ContextManager {
     readonly onDidChangeContext: vscode.Event<void> = this._onDidChangeContext.event;
 
     addFile(filePath: string): void {
+        console.log('[ContextManager] Adding file to context:', filePath);
         this.contextFiles.add(filePath);
+        console.log('[ContextManager] Context files now:', Array.from(this.contextFiles));
         this._onDidChangeContext.fire();
-        vscode.commands.executeCommand('context8.refresh');
+        vscode.commands.executeCommand('codexia.refresh');
     }
 
     removeFile(filePath: string): void {
+        console.log('[ContextManager] Removing file from context:', filePath);
         this.contextFiles.delete(filePath);
+        console.log('[ContextManager] Context files now:', Array.from(this.contextFiles));
         this._onDidChangeContext.fire();
-        vscode.commands.executeCommand('context8.refresh');
+        vscode.commands.executeCommand('codexia.refresh');
     }
 
     isInContext(filePath: string): boolean {

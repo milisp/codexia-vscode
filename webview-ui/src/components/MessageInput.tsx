@@ -4,15 +4,24 @@ import { Send, SendHorizontal } from 'lucide-react';
 import ReasoningEffortSelector from './ReasoningEffortSelector';
 import ProviderSelector from './ProviderSelector';
 import ModelSelector from './ModelSelector';
+import ContextBadge from './ContextBadge';
 import { postMessage, setupMessageListener } from '../utils/vscode-api';
 
 interface MessageInputProps {
   onSendMessage: (text: string) => void;
   isTyping: boolean;
   onFocus?: () => void;
+  contextFiles: ContextFile[];
+  onRemoveContextFile: (path: string) => void;
 }
 
-const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, onFocus }) => {
+interface ContextFile {
+  path: string;
+  relativePath: string;
+  name: string;
+}
+
+const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, onFocus, contextFiles, onRemoveContextFile }) => {
   const [inputText, setInputText] = useState('');
   const [reasoningEffort, setReasoningEffort] = useState('high');
   const [provider, setProvider] = useState('openai');
@@ -26,7 +35,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
     openrouter: ['openai/gpt-oss-20b:free', 'qwen/qwen3-coder:free', 'moonshotai/kimi-k2:free'],
     ollama: ['llama3.2', 'gpt-oss:20b', 'mistral'],
     anthropic: ['claude-4-sonnet'],
-    google: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+    google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -41,13 +50,12 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
     postMessage({ type: 'getConfig' });
     
     const cleanup = setupMessageListener((message) => {
-      if (message.type === 'configData') {
-        if (message.config) {
-          setProvider(message.config.provider || 'openai');
-          setModel(message.config.model || 'gpt-5');
-          setReasoningEffort(message.config.reasoning || 'high');
-          setConfigLoaded(true);
-        }
+      // Only handle config messages for MessageInput
+      if (message.type === 'configData' && message.config) {
+        setProvider(message.config.provider || 'openai');
+        setModel(message.config.model || 'gpt-5');
+        setReasoningEffort(message.config.reasoning || 'high');
+        setConfigLoaded(true);
       }
     });
 
@@ -60,8 +68,19 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
       return;
     }
 
-    onSendMessage(text);
+    // Add context files relative paths to message if any files are selected
+    let messageWithContext = text;
+    if (contextFiles.length > 0) {
+      const relativePaths = contextFiles.map(f => f.relativePath).join(' ');
+      messageWithContext = `${text}\n\nFiles: ${relativePaths}`;
+    }
+    
+    onSendMessage(messageWithContext);
     setInputText('');
+  };
+
+  const removeContextFile = (pathToRemove: string) => {
+    onRemoveContextFile(pathToRemove);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -108,6 +127,18 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
 
   return (
     <div className="border-t pt-3" style={{ borderTopColor: 'var(--vscode-input-border)' }}>
+      {contextFiles.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {contextFiles.map((file) => (
+            <ContextBadge
+              key={file.path}
+              fileName={file.name}
+              relativePath={file.relativePath}
+              onRemove={() => removeContextFile(file.path)}
+            />
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2 rounded-lg p-2" style={{ 
         backgroundColor: 'var(--vscode-input-background)', 
         border: '1px solid var(--vscode-input-border)' 

@@ -104,6 +104,14 @@ export function handleCodexEvent(service: CodexService, line: string): void {
     if (event.msg.type === "exec_command_begin") {
       console.log("exec_command_begin:", event);
       console.log("exec_command_begin call_id:", event.msg.call_id);
+      
+      // Emit general exec-begin event
+      service.emit("exec-begin", {
+        call_id: event.msg.call_id,
+        command: event.msg.command,
+        cwd: event.msg.cwd,
+      });
+      
       // Check if this is an apply_patch command
       if (event.msg.command && Array.isArray(event.msg.command) && event.msg.command[0] === "apply_patch") {
         const callId = event.msg.call_id || "apply_patch";
@@ -156,7 +164,7 @@ export function handleCodexEvent(service: CodexService, line: string): void {
     }
 
     if (event.msg.type === "task_complete") {
-      console.log("Task completed:", event.msg.last_agent_message?.substring(1, 20));
+      console.log("Task completed:", event.msg.last_agent_message?.substring(0, 20));
       service.emit("task-complete", {
         last_message: event.msg.last_agent_message,
       });

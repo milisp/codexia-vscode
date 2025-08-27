@@ -63,18 +63,14 @@ class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                 }
             }
 
+            // Update contextValue and icons for all items
             for (const item of items) {
-                item.contextValue = this.contextManager.isInContext(item.resourceUri.fsPath)
-                    ? `${item.itemType}_in_context`
-                    : `${item.itemType}_not_in_context`;
+                // Always show the default file/folder icons - the + and - buttons will be inline
+                item.iconPath = item.itemType === 'file'
+                    ? new vscode.ThemeIcon('file')
+                    : new vscode.ThemeIcon('folder');
 
-                if (item.inContext) {
-                    item.iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
-                } else {
-                    item.iconPath = item.itemType === 'file'
-                        ? new vscode.ThemeIcon('file')
-                        : new vscode.ThemeIcon('folder');
-                }
+                console.log(`[FileExplorerProvider] Item: ${item.label}, contextValue: ${item.contextValue}`);
             }
 
             return Promise.resolve(items);
@@ -98,14 +94,12 @@ class FileItem extends vscode.TreeItem {
         this.tooltip = this.resourceUri.fsPath;
         this.contextValue = inContext ? `${itemType}_in_context` : `${itemType}_not_in_context`;
         
-        // Set icon based on context status
-        if (inContext) {
-            this.iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
-        } else {
-            this.iconPath = itemType === 'file' ? 
-                new vscode.ThemeIcon('file') : 
-                new vscode.ThemeIcon('folder');
-        }
+        console.log(`[FileItem] Creating item: ${label}, inContext: ${inContext}, contextValue: ${this.contextValue}`);
+        
+        // Always show the default file/folder icons - the + and - buttons will be inline
+        this.iconPath = itemType === 'file' ? 
+            new vscode.ThemeIcon('file') : 
+            new vscode.ThemeIcon('folder');
 
         // Add command to open file in editor when clicked
         if (itemType === 'file') {

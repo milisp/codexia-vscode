@@ -45,6 +45,12 @@
           "id": "codexia.chatView",
           "name": "Chat",
           "icon": "$(comment-discussion)"
+        },
+        {
+          "type": "tree",
+          "id": "codexia.fileExplorer",
+          "name": "Context Files",
+          "icon": "$(files)"
         }
       ]
     },
@@ -68,6 +74,21 @@
         "command": "codexia.testDiff",
         "title": "Test Diff Viewer",
         "icon": "$(diff)"
+      },
+      {
+        "command": "codexia.addToContext",
+        "title": "Add to Context",
+        "icon": "$(add)"
+      },
+      {
+        "command": "codexia.removeFromContext",
+        "title": "Remove from Context",
+        "icon": "$(close)"
+      },
+      {
+        "command": "codexia.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -86,6 +107,23 @@
           "command": "codexia.clearHistory",
           "group": "navigation@3",
           "when": "view == codexia.chatView"
+        },
+        {
+          "command": "codexia.refresh",
+          "when": "view == codexia.fileExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codexia.addToContext",
+          "when": "view == codexia.fileExplorer && viewItem != file_in_context && viewItem != folder_in_context",
+          "group": "inline"
+        },
+        {
+          "command": "codexia.removeFromContext", 
+          "when": "view == codexia.fileExplorer && (viewItem == file_in_context || viewItem == folder_in_context)",
+          "group": "inline"
         }
       ]
     }

@@ -11,14 +11,9 @@ interface MessageProps {
 const Message: React.FC<MessageProps> = ({ message, index, onApproveExecution }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  // Debug: log execRequestId for exec-request messages
-  if (message.type === "exec-request") {
-    console.log("Message component - exec-request message:", { 
-      id: message.id, 
-      execRequestId: message.execRequestId,
-      hasExecRequestId: !!message.execRequestId,
-      content: message.content 
-    });
+  // Don't render executed exec-request messages
+  if (message.type === "exec-request" && (message as any).executed) {
+    return null;
   }
 
   const getTypeLabel = () => {

@@ -14,7 +14,7 @@ export const vscode = window.acquireVsCodeApi();
 import { ChatMessage, WorkingTask, ChatSession } from '../types/shared';
 
 export interface MessageFromExtension {
-  type: "updateMessages" | "setTyping" | "focusInput" | "updateWorkingTasks" | "chatHistory" | "settings" | "settingsSaved" | "configData" | "showSettings" | "hideSettings";
+  type: "updateMessages" | "setTyping" | "focusInput" | "updateWorkingTasks" | "chatHistory" | "settings" | "settingsSaved" | "configData" | "showSettings" | "hideSettings" | "contextFilesData" | "contextContentData";
   messages?: ChatMessage[];
   isTyping?: boolean;
   tasks?: WorkingTask[];
@@ -26,16 +26,24 @@ export interface MessageFromExtension {
   approvalPolicies?: string[];
   sandboxModes?: string[];
   providerEnvVars?: { [provider: string]: string[] };
+  files?: Array<{
+    path: string;
+    relativePath: string;
+    name: string;
+  }>;
+  content?: string;
 }
 
 export interface MessageToExtension {
-  type: "sendMessage" | "clearChat" | "approveExecution" | "getChatHistory" | "loadChatSession" | "deleteChatSession" | "getSettings" | "saveSettings" | "resetSettings" | "getConfig" | "updateConfig" | "resetConfig";
+  type: "sendMessage" | "clearChat" | "approveExecution" | "getChatHistory" | "loadChatSession" | "deleteChatSession" | "getSettings" | "saveSettings" | "resetSettings" | "getConfig" | "updateConfig" | "resetConfig" | "getContextFiles" | "removeContextFile" | "getContextContent";
   text?: string;
   execRequestId?: string;
   approved?: boolean;
   sessionId?: string;
   settings?: any;
   config?: any;
+  path?: string;
+  files?: string[];
 }
 
 export type { ChatMessage, WorkingTask, ChatSession };

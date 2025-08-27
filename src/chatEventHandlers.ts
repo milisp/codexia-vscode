@@ -30,6 +30,12 @@ export class ChatEventHandlers {
     this._activeExecCell = undefined;
   }
 
+  public clearMessages(): void {
+    console.log("ChatEventHandlers: Clearing all messages");
+    this._messages = [];
+    this.clearState();
+  }
+
   public setView(view: any): void {
     (this as any)._view = view;
   }
@@ -198,28 +204,75 @@ export class ChatEventHandlers {
     this._updateWebviewCallback();
   }
 
+  public onExecBegin(event: { call_id: string; command: string | string[]; cwd: string }): void {
+    console.log("ChatEventHandlers: onExecBegin called with:", event);
+    
+    // Find and mark the corresponding exec-request message as executed
+    const command = Array.isArray(event.command) ? event.command.join(' ') : event.command;
+    const execRequestMessage = this._messages.find(msg => 
+      msg.type === "exec-request" && 
+      msg.content.includes(command)
+    );
+    
+    if (execRequestMessage) {
+      console.log("ChatEventHandlers: Found exec-request message to mark as executed:", execRequestMessage.id);
+      (execRequestMessage as any).executed = true;
+    }
+    
+    const beginMessage: ChatMessage = {
+      id: this._generateIdCallback(),
+      type: "system",
+      content: `🔧 Executing: ${command}`,
+      timestamp: new Date(),
+    };
+    
+    this._messages.push(beginMessage);
+    this._runningCommands.set(event.call_id, {
+      call_id: event.call_id,
+      command: event.command,
+      cwd: event.cwd,
+    });
+    
+    this._updateWebviewCallback();
+  }
+
   public onExecOutput(output: { call_id: string; stream: string; chunk: string }): void {
     // Don't show raw command output in chat - it's usually just noise
     // Command results will be shown in onExecComplete if needed
   }
 
   public onExecComplete(result: { call_id: string; stdout: string; stderr: string; exit_code: number }): void {
+    console.log("ChatEventHandlers: onExecComplete called with:", result);
     this._runningCommands.delete(result.call_id);
 
     if (this._runningCommands.size === 0) {
       this._activeExecCell = undefined;
     }
 
-    // Only show command completion message if there was an error or meaningful output
-    if (result.exit_code !== 0 || result.stderr) {
-      const resultMessage: ChatMessage = {
-        id: this._generateIdCallback(),
-        type: "system",
-        content: `Command completed with exit code ${result.exit_code}${result.stderr ? "\nError: " + result.stderr : ""}`,
-        timestamp: new Date(),
-      };
-      this._messages.push(resultMessage);
+    // Show command completion message
+    let content = "";
+    if (result.exit_code === 0) {
+      content = "✅ Command executed successfully";
+      if (result.stdout && result.stdout.trim()) {
+        content += `\n\nOutput:\n${result.stdout.trim()}`;
+      }
+    } else {
+      content = `❌ Command failed with exit code ${result.exit_code}`;
+      if (result.stderr && result.stderr.trim()) {
+        content += `\n\nError:\n${result.stderr.trim()}`;
+      }
+      if (result.stdout && result.stdout.trim()) {
+        content += `\n\nOutput:\n${result.stdout.trim()}`;
+      }
     }
+
+    const resultMessage: ChatMessage = {
+      id: this._generateIdCallback(),
+      type: "system",
+      content,
+      timestamp: new Date(),
+    };
+    this._messages.push(resultMessage);
     
     this._updateWebviewCallback();
   }
@@ -230,11 +283,19 @@ export class ChatEventHandlers {
     this._runningCommands.clear();
     this._activeExecCell = undefined;
 
-    if (this._currentStreamingMessage && completion.last_message) {
-      this._currentStreamingMessage.content = completion.last_message;
+    if (completion.last_message) {
+      if (this._currentStreamingMessage) {
+        // Update the existing streaming message
+        this._currentStreamingMessage.content = completion.last_message;
+      } else {
+        // No streaming message exists, create a new one
+        console.log("ChatEventHandlers: No streaming message, creating new message for:", completion.last_message);
+        this._addMessage("assistant", completion.last_message);
+      }
     }
     
     this._currentStreamingMessage = undefined;
+    this._onProcessingStateChange?.(false);
     this._updateWebviewCallback();
   }
 

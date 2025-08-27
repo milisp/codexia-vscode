@@ -12,6 +12,7 @@ export interface ExecCell {
 }
 
 export interface RunningCommand {
-  id: string;
-  command: string;
+  call_id: string;
+  command: string | string[];
+  cwd: string;
 }

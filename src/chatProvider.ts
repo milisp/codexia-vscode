@@ -4,6 +4,8 @@ import { ConfigManager } from "./config";
 import { ChatMessage } from "./chatTypes";
 import { ChatEventHandlers } from "./chatEventHandlers";
 import { ChatMessageHandler } from "./chatMessageHandler";
+import { ContextManager } from "./contextManager";
+import * as path from "path";
 
 export class ChatProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "codexia.chatView";
@@ -18,6 +20,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     private readonly _extensionContext: vscode.ExtensionContext,
     private readonly _codexService: CodexService,
     private readonly _configManager: ConfigManager,
+    private readonly _contextManager: ContextManager,
   ) {
     this._eventHandlers = new ChatEventHandlers(
       this._codexService,
@@ -33,6 +36,12 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       () => this._updateWebview(),
       () => this._generateId()
     );
+
+    // Listen for context changes and update webview
+    this._contextManager.onDidChangeContext(() => {
+      console.log("[ChatProvider] Context changed, updating webview");
+      this._handleGetContextFiles();
+    });
   }
 
   public resolveWebviewView(
@@ -73,6 +82,15 @@ export class ChatProvider implements vscode.WebviewViewProvider {
             break;
           case "resetConfig":
             this._handleResetConfig();
+            break;
+          case "getContextFiles":
+            this._handleGetContextFiles();
+            break;
+          case "removeContextFile":
+            this._handleRemoveContextFile(message.path);
+            break;
+          case "getContextContent":
+            this._handleGetContextContent(message.files);
             break;
         }
       },
@@ -186,6 +204,14 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       (event: any) => {
         console.log("ChatProvider: unhandled codex event:", event);
         // Don't show unhandled events in chat - they're just debugging noise
+      },
+    );
+
+    this._codexService.on(
+      "exec-begin",
+      (event: { call_id: string; command: string | string[]; cwd: string }) => {
+        console.log("ChatProvider: exec-begin received:", event);
+        this._eventHandlers.onExecBegin(event);
       },
     );
 
@@ -417,6 +443,34 @@ export class ChatProvider implements vscode.WebviewViewProvider {
         <script nonce="${nonce}" src="${scriptUri}"></script>
       </body>
       </html>`;
+  }
+
+  private _handleGetContextFiles(): void {
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const contextFiles = this._contextManager.getContextFiles().map(filePath => ({
+      path: filePath,
+      relativePath: workspaceRoot ? path.relative(workspaceRoot, filePath) : path.basename(filePath),
+      name: path.basename(filePath)
+    }));
+
+    this._view?.webview.postMessage({
+      type: "contextFilesData",
+      files: contextFiles
+    });
+  }
+
+  private _handleRemoveContextFile(filePath: string): void {
+    this._contextManager.removeFile(filePath);
+  }
+
+  private _handleGetContextContent(files: string[]): void {
+    const contextContent = this._contextManager.getContextContent();
+    // For now, we'll send the content back to the webview
+    // The webview can then include it in the message
+    this._view?.webview.postMessage({
+      type: "contextContentData",
+      content: contextContent
+    });
   }
 
   private _getNonce(): string {

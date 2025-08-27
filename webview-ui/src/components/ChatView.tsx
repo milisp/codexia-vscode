@@ -22,6 +22,11 @@ const ChatView: React.FC<ChatViewProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [workingTasks, setWorkingTasks] = useState<WorkingTask[]>([]);
   const [shouldFocusInput, setShouldFocusInput] = useState(false);
+  const [contextFiles, setContextFiles] = useState<Array<{
+    path: string;
+    relativePath: string;
+    name: string;
+  }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -33,6 +38,9 @@ const ChatView: React.FC<ChatViewProps> = ({
   }, [messages, isTyping]);
 
   useEffect(() => {
+    // Request context files on component mount
+    postMessage({ type: 'getContextFiles' });
+    
     const cleanup = setupMessageListener((message: MessageFromExtension) => {
       switch (message.type) {
         case 'updateMessages':
@@ -56,6 +64,9 @@ const ChatView: React.FC<ChatViewProps> = ({
         case 'hideSettings':
           hideSettings();
           break;
+        case 'contextFilesData':
+          setContextFiles(message.files || []);
+          break;
       }
     });
 
@@ -75,6 +86,11 @@ const ChatView: React.FC<ChatViewProps> = ({
       execRequestId,
       approved,
     });
+  };
+
+  const handleRemoveContextFile = (pathToRemove: string) => {
+    setContextFiles(prev => prev.filter(file => file.path !== pathToRemove));
+    postMessage({ type: 'removeContextFile', path: pathToRemove });
   };
 
 
@@ -119,6 +135,8 @@ const ChatView: React.FC<ChatViewProps> = ({
         onSendMessage={handleSendMessage}
         isTyping={isTyping}
         onFocus={shouldFocusInput ? () => {} : undefined}
+        contextFiles={contextFiles}
+        onRemoveContextFile={handleRemoveContextFile}
       />
     </div>
   );

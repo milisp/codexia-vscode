@@ -88,6 +88,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
       e.preventDefault();
       handleSubmit();
     }
+    // Allow Shift+Enter for line breaks (default textarea behavior)
   };
 
   const handleProviderChange = (newProvider: string) => {
@@ -126,47 +127,37 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, isTyping, on
   };
 
   return (
-    <div className="border-t pt-3" style={{ borderTopColor: 'var(--vscode-input-border)' }}>
-      {contextFiles.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1">
-          {contextFiles.map((file) => (
-            <ContextBadge
-              key={file.path}
-              fileName={file.name}
-              relativePath={file.relativePath}
-              onRemove={() => removeContextFile(file.path)}
-            />
-          ))}
+    <div className="border-t pt-3 vscode-border-top">
+      <div className="flex items-end gap-2 rounded-lg p-2 vscode-input-container">
+        <div className="flex-1 relative">
+          {contextFiles.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1">
+              {contextFiles.map((file) => (
+                <ContextBadge
+                  key={file.path}
+                  fileName={file.name}
+                  relativePath={file.relativePath}
+                  onRemove={() => removeContextFile(file.path)}
+                />
+              ))}
+            </div>
+          )}
+          <TextareaAutosize
+            ref={textareaRef}
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask Codex to do anything..."
+            className="w-full bg-transparent border-none resize-none outline-none vscode-textarea"
+            minRows={3}
+            maxRows={10}
+            disabled={isTyping}
+          />
         </div>
-      )}
-      <div className="flex items-end gap-2 rounded-lg p-2" style={{ 
-        backgroundColor: 'var(--vscode-input-background)', 
-        border: '1px solid var(--vscode-input-border)' 
-      }}>
-        <TextareaAutosize
-          ref={textareaRef}
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask Codex to do anything..."
-          className="flex-1 bg-transparent border-none resize-none outline-none"
-          style={{
-            color: 'var(--vscode-input-foreground)',
-            fontSize: 'var(--vscode-font-size)',
-            fontFamily: 'var(--vscode-font-family)'
-          }}
-          minRows={3}
-          maxRows={10}
-          disabled={isTyping}
-        />
         <button
           onClick={handleSubmit}
           disabled={!inputText.trim() || isTyping}
-          className="p-2 rounded flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            backgroundColor: inputText.trim() && !isTyping ? 'var(--vscode-button-background)' : 'var(--vscode-button-secondaryBackground)',
-            color: inputText.trim() && !isTyping ? 'var(--vscode-button-foreground)' : 'var(--vscode-button-secondaryForeground)'
-          }}
+          className="p-2 rounded flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed vscode-send-button"
         >
           <Send className='w-4 h-4' />
         </button>

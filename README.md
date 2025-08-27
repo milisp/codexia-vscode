@@ -4,6 +4,7 @@
 [![Downloads](https://img.shields.io/github/downloads/milisp/codexia-vscode/total.svg)](https://github.com/milisp/codexia-vscode/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 [![Feature Requests](https://img.shields.io/github/issues/milisp/codexia-vscode/feature-request?label=feature%20requests)](https://github.com/milisp/codexia-vscode/labels/feature-request)
+[![Last Commit](https://img.shields.io/github/last-commit/milisp/codexia-vscode?label=last%20commit)](https://github.com/milisp/codexia-vscode)
 
 A VSCode extension that provides a chat interface for the OpenAI Codex CLI, allowing you to interact with AI coding assistants directly from your editor.
 

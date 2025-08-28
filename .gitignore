@@ -4,6 +4,8 @@ node_modules
 .vscode-test/
 *.vsix
 
+.vscode/
+
 .claude/
 Claude.md
 CLAUDE.md
